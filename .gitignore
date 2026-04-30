@@ -1,0 +1,23 @@
+# Node
+node_modules/
+npm-debug.log*
+
+# Env files (IMPORTANT)
+.env
+backend/.env
+frontend/.env
+
+# Build
+dist/
+build/
+
+# Uploads (IMPORTANT for your app)
+uploads/
+backend/uploads/
+
+# OS files
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
