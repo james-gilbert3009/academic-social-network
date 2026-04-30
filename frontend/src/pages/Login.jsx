@@ -63,6 +63,10 @@ export default function Login() {
           </div>
         </label>
 
+        <p className="muted" style={{ marginTop: "-4px" }}>
+          <Link to="/forgot-password">Forgot password?</Link>
+        </p>
+
         <button className="btn btnPrimary" type="submit">
           Login
         </button>

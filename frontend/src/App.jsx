@@ -5,6 +5,7 @@ import { setAuthToken } from "./api";
 import RequireAuth from "./components/RequireAuth.jsx";
 import RequireProfileComplete from "./components/RequireProfileComplete.jsx";
 import Feed from "./pages/Feed.jsx";
+import ForgotPassword from "./pages/ForgotPassword.jsx";
 import Login from "./pages/Login.jsx";
 import Profile from "./pages/Profile.jsx";
 import ProfileSetup from "./pages/ProfileSetup.jsx";
@@ -22,6 +23,7 @@ export default function App() {
 
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
 
       <Route element={<RequireAuth />}>
         <Route path="/profile-setup" element={<ProfileSetup />} />
