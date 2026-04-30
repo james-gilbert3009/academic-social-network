@@ -6,6 +6,13 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    username: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
+    },
     email: {
       type: String,
       required: true,
@@ -19,8 +26,12 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ["student", "professor", "admin"],
+      enum: ["student", "lecturer", "professor", "admin"],
       default: "student",
+    },
+    birthdate: {
+      type: Date,
+      default: null,
     },
     bio: {
       type: String,

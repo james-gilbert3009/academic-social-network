@@ -8,7 +8,7 @@ const router = express.Router();
 // Register
 router.post("/register", async (req, res) => {
   try {
-    const { name, username, email, password, role } = req.body;
+    const { name, username, email, password, role, birthdate } = req.body;
 
     if (!name || !username || !email || !password) {
       return res.status(400).json({ message: "Please provide name, username, email, and password" });
@@ -35,6 +35,7 @@ router.post("/register", async (req, res) => {
       email: normalizedEmail,
       password: hashedPassword,
       role,
+      birthdate: birthdate ? new Date(birthdate) : null,
     });
 
     const token = jwt.sign(
