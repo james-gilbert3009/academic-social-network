@@ -19,7 +19,7 @@ export default function RequireProfileComplete() {
 
         const token = localStorage.getItem("token") || "";
         setAuthToken(token);
-        const res = await api.get("/api/users/me", {
+        const res = await api.get("/api/profile/me", {
           headers: { Authorization: `Bearer ${token}` },
         });
         const complete = Boolean(res.data?.user?.isProfileComplete);

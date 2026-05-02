@@ -31,9 +31,6 @@ export default function Profile() {
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
   const [user, setUser] = useState(null);
-  const [hideSetupReminder, setHideSetupReminder] = useState(
-    localStorage.getItem("skipProfileSetup") === "1"
-  );
   const [avatarMenuOpen, setAvatarMenuOpen] = useState(false);
   const [viewImageOpen, setViewImageOpen] = useState(false);
   const [pendingImage, setPendingImage] = useState(null);
@@ -41,6 +38,7 @@ export default function Profile() {
   const [profilePhotoBusy, setProfilePhotoBusy] = useState(false);
 
   const [form, setForm] = useState({
+    name: "",
     bio: "",
     faculty: "",
     program: "",
@@ -50,8 +48,8 @@ export default function Profile() {
 
   const canSave = useMemo(() => !saving && !loading, [saving, loading]);
 
-  const skillsList = useMemo(() => fromCommaList(form.skills), [form.skills]);
-  const interestsList = useMemo(() => fromCommaList(form.interests), [form.interests]);
+  const photoStatus =
+    status === "Profile photo updated." || status === "Profile photo removed.";
 
   const hasProfilePicture = Boolean(user?.profileImage);
   const avatarDisplaySrc =
@@ -72,6 +70,7 @@ export default function Profile() {
       const u = res.data.user;
       setUser(u);
       setForm({
+        name: u?.name || "",
         bio: u?.bio || "",
         faculty: u?.faculty || "",
         program: u?.program || "",
@@ -95,11 +94,6 @@ export default function Profile() {
     localStorage.removeItem("token");
     setAuthToken("");
     navigate("/login", { replace: true });
-  }
-
-  function completeLater() {
-    localStorage.setItem("skipProfileSetup", "1");
-    setHideSetupReminder(true);
   }
 
   function closeAvatarMenu() {
@@ -181,6 +175,7 @@ export default function Profile() {
     setSaving(true);
     try {
       const payload = {
+        name: form.name,
         bio: form.bio,
         faculty: form.faculty,
         program: form.program,
@@ -209,6 +204,7 @@ export default function Profile() {
     if (!user) return;
     setStatus("");
     setForm({
+      name: user?.name || "",
       bio: user?.bio || "",
       faculty: user?.faculty || "",
       program: user?.program || "",
@@ -228,6 +224,12 @@ export default function Profile() {
     justifyContent: "center",
     padding: 16,
   };
+
+  function submitProfile(e) {
+    e.preventDefault();
+    if (!editing) return;
+    save(e);
+  }
 
   const menuPanelStyle = {
     position: "absolute",
@@ -270,13 +272,13 @@ export default function Profile() {
 
       {user ? (
         <>
-          {!user.isProfileComplete && !hideSetupReminder ? (
+          {!user.isProfileComplete ? (
             <section className="card">
               <div className="topbar" style={{ padding: 0 }}>
                 <div>
-                  <h2 style={{ marginBottom: 6 }}>Finish setting up your profile</h2>
+                  <h2 style={{ marginBottom: 6 }}>Complete your profile</h2>
                   <div className="muted">
-                    Add a photo, skills, and interests so others can find you.
+                    Your profile is incomplete. Complete your profile to help students and staff know more about you.
                   </div>
                 </div>
                 <div className="actionsRow">
@@ -285,10 +287,7 @@ export default function Profile() {
                     type="button"
                     onClick={() => navigate("/profile-setup")}
                   >
-                    Complete now
-                  </button>
-                  <button className="btn" type="button" onClick={completeLater}>
-                    Later
+                    Complete profile
                   </button>
                 </div>
               </div>
@@ -401,12 +400,33 @@ export default function Profile() {
                 ) : null}
               </div>
 
-              <div style={{ flex: 1, minWidth: 220 }}>
+              <form
+                className={editing ? "form" : undefined}
+                style={{ flex: 1, minWidth: 220, margin: 0 }}
+                onSubmit={submitProfile}
+              >
                 <div className="topbar" style={{ padding: 0 }}>
                   <div>
-                    <h2 style={{ marginBottom: 6 }}>{user.name}</h2>
-                    <div className="muted">{user.email}</div>
-                    <div className="muted">Role: {user.role}</div>
+                    {!editing ? (
+                      <>
+                        <h2 style={{ marginBottom: 6 }}>{user.name}</h2>
+                        <div className="muted">{user.email}</div>
+                        <div className="muted">Role: {user.role}</div>
+                      </>
+                    ) : (
+                      <>
+                        <label className="field" style={{ marginBottom: 4 }}>
+                          <span className="muted">Full name</span>
+                          <input
+                            value={form.name}
+                            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                            autoComplete="name"
+                          />
+                        </label>
+                        <div className="muted">{user.email}</div>
+                        <div className="muted">Role: {user.role}</div>
+                      </>
+                    )}
                   </div>
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                     {!editing ? (
@@ -414,9 +434,14 @@ export default function Profile() {
                         Edit profile
                       </button>
                     ) : (
-                      <button className="btn" type="button" onClick={cancelEdit} disabled={saving}>
-                        Cancel
-                      </button>
+                      <>
+                        <button className="btn btnPrimary" type="submit" disabled={!canSave}>
+                          {saving ? "Saving..." : "Save"}
+                        </button>
+                        <button className="btn" type="button" onClick={cancelEdit} disabled={saving}>
+                          Cancel
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>
@@ -426,22 +451,55 @@ export default function Profile() {
                     <div className="muted" style={{ marginBottom: 6 }}>
                       Bio
                     </div>
-                    <div>{(editing ? form.bio : user.bio) || <span className="muted">—</span>}</div>
+                    {!editing ? (
+                      <div style={{ whiteSpace: "pre-wrap" }}>
+                        {user.bio ? user.bio : <span className="muted">—</span>}
+                      </div>
+                    ) : (
+                      <textarea
+                        value={form.bio}
+                        onChange={(e) => setForm((f) => ({ ...f, bio: e.target.value }))}
+                        placeholder="Tell others about your research interests..."
+                        rows={4}
+                        style={{ width: "100%", boxSizing: "border-box" }}
+                      />
+                    )}
                   </div>
                   <div>
                     <div className="muted" style={{ marginBottom: 6 }}>
                       Academic
                     </div>
-                    <div>
+                    {!editing ? (
                       <div>
-                        <span className="muted">Faculty: </span>
-                        {(editing ? form.faculty : user.faculty) || <span className="muted">—</span>}
+                        <div>
+                          <span className="muted">Faculty: </span>
+                          {user.faculty ? user.faculty : <span className="muted">—</span>}
+                        </div>
+                        <div>
+                          <span className="muted">Program: </span>
+                          {user.program ? user.program : <span className="muted">—</span>}
+                        </div>
                       </div>
-                      <div>
-                        <span className="muted">Program: </span>
-                        {(editing ? form.program : user.program) || <span className="muted">—</span>}
+                    ) : (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                        <label className="field" style={{ margin: 0 }}>
+                          <span className="muted">Faculty</span>
+                          <input
+                            value={form.faculty}
+                            onChange={(e) => setForm((f) => ({ ...f, faculty: e.target.value }))}
+                            placeholder="Engineering"
+                          />
+                        </label>
+                        <label className="field" style={{ margin: 0 }}>
+                          <span className="muted">Program</span>
+                          <input
+                            value={form.program}
+                            onChange={(e) => setForm((f) => ({ ...f, program: e.target.value }))}
+                            placeholder="Computer Science"
+                          />
+                        </label>
                       </div>
-                    </div>
+                    )}
                   </div>
                 </div>
 
@@ -450,102 +508,65 @@ export default function Profile() {
                     <div className="muted" style={{ marginBottom: 6 }}>
                       Skills
                     </div>
-                    <div className="chipRow">
-                      {(editing ? skillsList : user.skills || []).length ? (
-                        (editing ? skillsList : user.skills || []).map((s) => (
-                          <span className="chip" key={s}>
-                            {s}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="muted">—</span>
-                      )}
-                    </div>
+                    {!editing ? (
+                      <div className="chipRow">
+                        {(user.skills || []).length ? (
+                          user.skills.map((s) => (
+                            <span className="chip" key={s}>
+                              {s}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="muted">—</span>
+                        )}
+                      </div>
+                    ) : (
+                      <input
+                        value={form.skills}
+                        onChange={(e) => setForm((f) => ({ ...f, skills: e.target.value }))}
+                        placeholder="NLP, Data Mining, React"
+                        style={{ width: "100%", boxSizing: "border-box" }}
+                      />
+                    )}
                   </div>
                   <div>
                     <div className="muted" style={{ marginBottom: 6 }}>
                       Interests
                     </div>
-                    <div className="chipRow">
-                      {(editing ? interestsList : user.interests || []).length ? (
-                        (editing ? interestsList : user.interests || []).map((s) => (
-                          <span className="chip" key={s}>
-                            {s}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="muted">—</span>
-                      )}
-                    </div>
+                    {!editing ? (
+                      <div className="chipRow">
+                        {(user.interests || []).length ? (
+                          user.interests.map((s) => (
+                            <span className="chip" key={s}>
+                              {s}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="muted">—</span>
+                        )}
+                      </div>
+                    ) : (
+                      <input
+                        value={form.interests}
+                        onChange={(e) => setForm((f) => ({ ...f, interests: e.target.value }))}
+                        placeholder="AI safety, recommender systems"
+                        style={{ width: "100%", boxSizing: "border-box" }}
+                      />
+                    )}
                   </div>
                 </div>
-              </div>
+
+                {status && !photoStatus && (editing || status === "Saved.") ? (
+                  <div
+                    className={status === "Saved." ? "alert" : "alert alertError"}
+                    style={{ marginTop: 12 }}
+                  >
+                    {status}
+                  </div>
+                ) : null}
+              </form>
             </div>
           </section>
-
-          {editing ? (
-            <form className="card form" onSubmit={save}>
-              <h2>Edit profile</h2>
-
-              <label className="field">
-                <span>Bio</span>
-                <input
-                  value={form.bio}
-                  onChange={(e) => setForm((f) => ({ ...f, bio: e.target.value }))}
-                  placeholder="Tell others about your research interests..."
-                />
-              </label>
-
-              <label className="field">
-                <span>Faculty</span>
-                <input
-                  value={form.faculty}
-                  onChange={(e) => setForm((f) => ({ ...f, faculty: e.target.value }))}
-                  placeholder="Engineering"
-                />
-              </label>
-
-              <label className="field">
-                <span>Program</span>
-                <input
-                  value={form.program}
-                  onChange={(e) => setForm((f) => ({ ...f, program: e.target.value }))}
-                  placeholder="Computer Science"
-                />
-              </label>
-
-              <label className="field">
-                <span>Skills (comma-separated)</span>
-                <input
-                  value={form.skills}
-                  onChange={(e) => setForm((f) => ({ ...f, skills: e.target.value }))}
-                  placeholder="NLP, Data Mining, React"
-                />
-              </label>
-
-              <label className="field">
-                <span>Interests (comma-separated)</span>
-                <input
-                  value={form.interests}
-                  onChange={(e) => setForm((f) => ({ ...f, interests: e.target.value }))}
-                  placeholder="AI safety, recommender systems"
-                />
-              </label>
-
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <button className="btn btnPrimary" type="submit" disabled={!canSave}>
-                  {saving ? "Saving..." : "Save changes"}
-                </button>
-                <button className="btn" type="button" onClick={cancelEdit} disabled={saving}>
-                  Cancel
-                </button>
-              </div>
-
-              {status ? (
-                <div className={status === "Saved." ? "alert" : "alert alertError"}>{status}</div>
-              ) : null}
-            </form>
-          ) : null}
 
           <section className="card">
             <div className="topbar" style={{ padding: 0 }}>
@@ -574,16 +595,10 @@ export default function Profile() {
         </>
       ) : null}
 
-      {!editing && status && status !== "Saved." ? (
-        <div
-          className={
-            status === "Profile photo updated." || status === "Profile photo removed."
-              ? "alert"
-              : "alert alertError"
-          }
-        >
-          {status}
-        </div>
+      {!editing && status && photoStatus ? <div className="alert">{status}</div> : null}
+
+      {!editing && status && !photoStatus && status !== "Saved." ? (
+        <div className="alert alertError">{status}</div>
       ) : null}
 
       {viewImageOpen && hasProfilePicture ? (
