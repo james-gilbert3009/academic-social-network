@@ -171,8 +171,38 @@
 }
 
 .btnPrimary {
-  background: var(--accent-bg);
-  border-color: var(--accent-border);
+  background: var(--accent);
+  color: #fff;
+  border-color: color-mix(in oklab, var(--accent) 78%, #000);
+  font-weight: 600;
+}
+
+.btnPrimary:hover {
+  filter: brightness(1.07);
+}
+
+.btnPrimary:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.btnDanger {
+  color: #b91c1c;
+  border-color: rgba(185, 28, 28, 0.4);
+  background: color-mix(in oklab, rgba(185, 28, 28, 0.09) 90%, var(--bg));
+  font-weight: 600;
+}
+
+.btnDanger:hover {
+  box-shadow: var(--shadow);
+}
+
+@media (prefers-color-scheme: dark) {
+  .btnDanger {
+    color: #fca5a5;
+    border-color: rgba(252, 165, 165, 0.35);
+    background: color-mix(in oklab, rgba(248, 113, 113, 0.12) 85%, var(--bg));
+  }
 }
 
 .alert {

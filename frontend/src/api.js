@@ -1,6 +1,8 @@
 import axios from "axios";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+/** API origin for axios and absolute asset URLs (e.g. `/uploads/...`). Override via `VITE_API_BASE_URL`. */
+export const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -19,6 +21,3 @@ export function setAuthToken(token) {
     delete api.defaults.headers.common.Authorization;
   }
 }
-
-export { API_BASE_URL };
-

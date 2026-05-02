@@ -75,6 +75,16 @@ router.put("/me", requireAuth, upload.single("profileImage"), async (req, res) =
       updates.profileImage = `/uploads/${req.file.filename}`;
     }
 
+    const removePhoto = req.body?.removeProfileImage;
+    if (
+      !req.file &&
+      (removePhoto === true ||
+        removePhoto === "true" ||
+        removePhoto === "1")
+    ) {
+      updates.profileImage = "";
+    }
+
     updates.isProfileComplete = true;
 
     const user = await User.findByIdAndUpdate(req.user.id, updates, {
