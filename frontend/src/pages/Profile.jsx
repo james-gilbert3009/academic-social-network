@@ -1,6 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api, API_BASE_URL, setAuthToken } from "../api";
+import { API_BASE_URL, setAuthToken } from "../api";
+import { getProfile, updateProfile } from "../api/profile";
+import ProfileAvatar from "../components/ProfileAvatar";
+import ProfileForm from "../components/ProfileForm";
 
 function toCommaList(arr) {
   if (!Array.isArray(arr)) return "";
@@ -25,16 +28,11 @@ function profileImageSrc(profileImage) {
 
 export default function Profile() {
   const navigate = useNavigate();
-  const fileInputRef = useRef(null);
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
   const [user, setUser] = useState(null);
-  const [avatarMenuOpen, setAvatarMenuOpen] = useState(false);
-  const [viewImageOpen, setViewImageOpen] = useState(false);
-  const [pendingImage, setPendingImage] = useState(null);
-  const [pendingPreviewUrl, setPendingPreviewUrl] = useState("");
   const [profilePhotoBusy, setProfilePhotoBusy] = useState(false);
 
   const [form, setForm] = useState({
@@ -58,17 +56,11 @@ export default function Profile() {
     profileImageSrc(user?.profileImage) ||
     `https://api.dicebear.com/8.x/initials/svg?seed=${encodeURIComponent(user?.name || "User")}`;
 
-  useEffect(() => {
-    return () => {
-      if (pendingPreviewUrl) URL.revokeObjectURL(pendingPreviewUrl);
-    };
-  }, [pendingPreviewUrl]);
-
   async function loadProfile() {
     setStatus("");
     setLoading(true);
     try {
-      const res = await api.get("/api/profile/me");
+      const res = await getProfile();
       const u = res.data.user;
       setUser(u);
       setForm({
@@ -98,69 +90,34 @@ export default function Profile() {
     navigate("/login", { replace: true });
   }
 
-  function closeAvatarMenu() {
-    setAvatarMenuOpen(false);
-  }
-
-  function openViewProfilePicture() {
-    closeAvatarMenu();
-    setViewImageOpen(true);
-  }
-
-  function closePendingImageModal() {
-    if (pendingPreviewUrl) URL.revokeObjectURL(pendingPreviewUrl);
-    setPendingPreviewUrl("");
-    setPendingImage(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  }
-
-  function openFilePickerForAvatar() {
-    closeAvatarMenu();
-    if (fileInputRef.current) fileInputRef.current.value = "";
-    fileInputRef.current?.click();
-  }
-
-  function onAvatarFileChange(e) {
-    const file = e.target.files?.[0];
-    if (!file || !file.type.startsWith("image/")) {
-      if (fileInputRef.current) fileInputRef.current.value = "";
-      return;
-    }
-    if (pendingPreviewUrl) URL.revokeObjectURL(pendingPreviewUrl);
-    const url = URL.createObjectURL(file);
-    setPendingImage(file);
-    setPendingPreviewUrl(url);
-  }
-
-  async function uploadPendingProfileImage() {
-    if (!pendingImage || !user) return;
+  async function uploadPendingProfileImage(file) {
+    if (!file || !user) return false;
     setProfilePhotoBusy(true);
     setStatus("");
     try {
       const fd = new FormData();
-      fd.append("profileImage", pendingImage);
-      const res = await api.put("/api/profile/me", fd);
+      fd.append("profileImage", file);
+      const res = await updateProfile(fd);
       setUser(res.data.user);
-      closePendingImageModal();
       setStatus("Profile photo updated.");
+      return true;
     } catch (err) {
       const msg = err?.response?.data?.message || err?.message || "Failed to upload photo";
       setStatus(msg);
+      return false;
     } finally {
       setProfilePhotoBusy(false);
     }
   }
 
   async function removeProfilePicture() {
-    closeAvatarMenu();
     if (!window.confirm("Remove your profile picture? You can add a new one anytime.")) return;
     if (!user) return;
     setProfilePhotoBusy(true);
     setStatus("");
     try {
-      const res = await api.put("/api/profile/me", { removeProfileImage: true });
+      const res = await updateProfile({ removeProfileImage: true });
       setUser(res.data.user);
-      setViewImageOpen(false);
       setStatus("Profile photo removed.");
     } catch (err) {
       const msg = err?.response?.data?.message || err?.message || "Failed to remove photo";
@@ -184,7 +141,7 @@ export default function Profile() {
         skills: fromCommaList(form.skills),
         interests: fromCommaList(form.interests),
       };
-      const res = await api.put("/api/profile/me", payload);
+      const res = await updateProfile(payload);
       setUser(res.data.user);
       setStatus("Saved.");
       setEditing(false);
@@ -224,48 +181,14 @@ export default function Profile() {
     setEditing(false);
   }
 
-  const overlayStyle = {
-    position: "fixed",
-    inset: 0,
-    background: "rgba(0,0,0,0.45)",
-    zIndex: 1000,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 16,
-  };
-
   function submitProfile(e) {
     e.preventDefault();
     if (!editing) return;
     save(e);
   }
 
-  const menuPanelStyle = {
-    position: "absolute",
-    top: "100%",
-    left: 0,
-    marginTop: 8,
-    zIndex: 20,
-    minWidth: 200,
-    background: "var(--card-bg, #fff)",
-    border: "1px solid rgba(0,0,0,0.08)",
-    borderRadius: 8,
-    boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
-    padding: 4,
-  };
-
   return (
     <div className="page">
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        style={{ display: "none" }}
-        aria-hidden
-        onChange={onAvatarFileChange}
-      />
-
       <div className="topbar">
         <h1>My Profile</h1>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -307,285 +230,30 @@ export default function Profile() {
 
           <section className="card">
             <div className="row">
-              <div style={{ position: "relative", alignSelf: "flex-start" }}>
-                <button
-                  type="button"
-                  onClick={() => setAvatarMenuOpen((v) => !v)}
-                  aria-expanded={avatarMenuOpen}
-                  aria-haspopup="true"
-                  aria-label="Profile picture options"
-                  disabled={loading || profilePhotoBusy}
-                  style={{
-                    padding: 0,
-                    margin: 0,
-                    border: "none",
-                    background: "transparent",
-                    cursor: loading ? "default" : "pointer",
-                    borderRadius: "50%",
-                    display: "block",
-                  }}
-                >
-                  <img className="avatar" src={avatarDisplaySrc} alt="" />
-                </button>
+              <ProfileAvatar
+                avatarDisplaySrc={avatarDisplaySrc}
+                viewImageSrc={hasProfilePicture ? profileImageSrc(user.profileImage) : null}
+                hasProfilePicture={hasProfilePicture}
+                loading={loading}
+                profilePhotoBusy={profilePhotoBusy}
+                onUploadPending={uploadPendingProfileImage}
+                onRemoveProfilePicture={removeProfilePicture}
+              />
 
-                {avatarMenuOpen ? (
-                  <>
-                    <div
-                      role="presentation"
-                      style={{
-                        position: "fixed",
-                        inset: 0,
-                        zIndex: 15,
-                      }}
-                      onClick={closeAvatarMenu}
-                    />
-                    <div style={menuPanelStyle} role="menu">
-                      {hasProfilePicture ? (
-                        <>
-                          <button
-                            type="button"
-                            className="btn"
-                            role="menuitem"
-                            onClick={openViewProfilePicture}
-                            disabled={profilePhotoBusy}
-                            style={{
-                              width: "100%",
-                              justifyContent: "flex-start",
-                              border: "none",
-                              borderRadius: 6,
-                            }}
-                          >
-                            View profile picture
-                          </button>
-                          <button
-                            type="button"
-                            className="btn"
-                            role="menuitem"
-                            onClick={openFilePickerForAvatar}
-                            disabled={profilePhotoBusy}
-                            style={{
-                              width: "100%",
-                              justifyContent: "flex-start",
-                              border: "none",
-                              borderRadius: 6,
-                            }}
-                          >
-                            Change profile picture
-                          </button>
-                          <button
-                            type="button"
-                            className="btn btnDanger"
-                            role="menuitem"
-                            onClick={removeProfilePicture}
-                            disabled={profilePhotoBusy}
-                            style={{
-                              width: "100%",
-                              justifyContent: "flex-start",
-                              border: "none",
-                              borderRadius: 6,
-                              marginTop: 4,
-                            }}
-                          >
-                            {profilePhotoBusy ? "Working..." : "Remove profile picture"}
-                          </button>
-                        </>
-                      ) : (
-                        <button
-                          type="button"
-                          className="btn btnPrimary"
-                          role="menuitem"
-                          onClick={openFilePickerForAvatar}
-                          disabled={profilePhotoBusy}
-                          style={{
-                            width: "100%",
-                            justifyContent: "flex-start",
-                            border: "none",
-                            borderRadius: 6,
-                          }}
-                        >
-                          Add profile picture
-                        </button>
-                      )}
-                    </div>
-                  </>
-                ) : null}
-              </div>
-
-              <div style={{ flex: 1, minWidth: 220, margin: 0 }}>
-                <div className="topbar" style={{ padding: 0 }}>
-                  <div>
-                    {!editing ? (
-                      <>
-                        <h2 style={{ marginBottom: 6 }}>{user.name}</h2>
-                        <div className="muted">{user.email}</div>
-                        <div className="muted">Role: {user.role}</div>
-                      </>
-                    ) : (
-                      <>
-                        <label className="field" style={{ marginBottom: 4 }}>
-                          <span className="muted">Full name</span>
-                          <input
-                            value={form.name}
-                            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                            autoComplete="name"
-                          />
-                        </label>
-                        <div className="muted">{user.email}</div>
-                        <div className="muted"> {user.role}</div>
-                      </>
-                    )}
-                  </div>
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    {!editing ? (
-                      <button className="btn btnPrimary" type="button" onClick={startEdit}>
-                        Edit profile
-                      </button>
-                    ) : (
-                      <>
-                        <button
-                          className="btn btnPrimary"
-                          type="button"
-                          disabled={!canSave}
-                          onClick={() => {
-                            const ev = { preventDefault() {} };
-                            save(ev);
-                          }}
-                        >
-                          {saving ? "Saving..." : "Save"}
-                        </button>
-                        <button className="btn" type="button" onClick={cancelEdit} disabled={saving}>
-                          Cancel
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                <form
-                  className={editing ? "form" : undefined}
-                  style={{ marginTop: 12, width: "100%", maxWidth: 520 }}
-                  onSubmit={submitProfile}
-                >
-                <div className="grid2" style={{ marginTop: 0 }}>
-                  <div>
-                    <div className="muted" style={{ marginBottom: 6 }}>
-                      Bio
-                    </div>
-                    {!editing ? (
-                      <div style={{ whiteSpace: "pre-wrap" }}>
-                        {user.bio ? user.bio : <span className="muted">—</span>}
-                      </div>
-                    ) : (
-                      <textarea
-                        value={form.bio}
-                        onChange={(e) => setForm((f) => ({ ...f, bio: e.target.value }))}
-                        placeholder="Tell others about your research interests..."
-                        rows={4}
-                        style={{ width: "100%", boxSizing: "border-box" }}
-                      />
-                    )}
-                  </div>
-                  <div>
-                    <div className="muted" style={{ marginBottom: 6 }}>
-                      Academic
-                    </div>
-                    {!editing ? (
-                      <div>
-                        <div>
-                          <span className="muted">Faculty: </span>
-                          {user.faculty ? user.faculty : <span className="muted">—</span>}
-                        </div>
-                        <div>
-                          <span className="muted">Program: </span>
-                          {user.program ? user.program : <span className="muted">—</span>}
-                        </div>
-                      </div>
-                    ) : (
-                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                        <label className="field" style={{ margin: 0 }}>
-                          <span className="muted">Faculty</span>
-                          <input
-                            value={form.faculty}
-                            onChange={(e) => setForm((f) => ({ ...f, faculty: e.target.value }))}
-                            placeholder="Engineering"
-                          />
-                        </label>
-                        <label className="field" style={{ margin: 0 }}>
-                          <span className="muted">Program</span>
-                          <input
-                            value={form.program}
-                            onChange={(e) => setForm((f) => ({ ...f, program: e.target.value }))}
-                            placeholder="Computer Science"
-                          />
-                        </label>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="grid2" style={{ marginTop: 12 }}>
-                  <div>
-                    <div className="muted" style={{ marginBottom: 6 }}>
-                      Skills
-                    </div>
-                    {!editing ? (
-                      <div className="chipRow">
-                        {(user.skills || []).length ? (
-                          user.skills.map((s) => (
-                            <span className="chip" key={s}>
-                              {s}
-                            </span>
-                          ))
-                        ) : (
-                          <span className="muted">—</span>
-                        )}
-                      </div>
-                    ) : (
-                      <input
-                        value={form.skills}
-                        onChange={(e) => setForm((f) => ({ ...f, skills: e.target.value }))}
-                        placeholder="NLP, Data Mining, React"
-                        style={{ width: "100%", boxSizing: "border-box" }}
-                      />
-                    )}
-                  </div>
-                  <div>
-                    <div className="muted" style={{ marginBottom: 6 }}>
-                      Interests
-                    </div>
-                    {!editing ? (
-                      <div className="chipRow">
-                        {(user.interests || []).length ? (
-                          user.interests.map((s) => (
-                            <span className="chip" key={s}>
-                              {s}
-                            </span>
-                          ))
-                        ) : (
-                          <span className="muted">—</span>
-                        )}
-                      </div>
-                    ) : (
-                      <input
-                        value={form.interests}
-                        onChange={(e) => setForm((f) => ({ ...f, interests: e.target.value }))}
-                        placeholder="AI safety, recommender systems"
-                        style={{ width: "100%", boxSizing: "border-box" }}
-                      />
-                    )}
-                  </div>
-                </div>
-
-                {status && !photoStatus && (editing || status === "Saved.") ? (
-                  <div
-                    className={status === "Saved." ? "alert" : "alert alertError"}
-                    style={{ marginTop: 12 }}
-                  >
-                    {status}
-                  </div>
-                ) : null}
-                </form>
-              </div>
+              <ProfileForm
+                user={user}
+                form={form}
+                setForm={setForm}
+                editing={editing}
+                saving={saving}
+                canSave={canSave}
+                status={status}
+                photoStatus={photoStatus}
+                onStartEdit={startEdit}
+                onCancelEdit={cancelEdit}
+                onSave={save}
+                onSubmitProfile={submitProfile}
+              />
             </div>
           </section>
 
@@ -620,91 +288,6 @@ export default function Profile() {
 
       {!editing && status && !photoStatus && status !== "Saved." ? (
         <div className="alert alertError">{status}</div>
-      ) : null}
-
-      {viewImageOpen && hasProfilePicture ? (
-        <div
-          style={overlayStyle}
-          role="dialog"
-          aria-modal="true"
-          aria-label="Profile picture"
-          onClick={() => setViewImageOpen(false)}
-        >
-          <div
-            className="card"
-            style={{ maxWidth: "min(90vw, 720px)", margin: 0, position: "relative" }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="topbar" style={{ padding: 0, marginBottom: 12 }}>
-              <h2 style={{ margin: 0 }}>Profile picture</h2>
-              <button
-                type="button"
-                className="btn"
-                onClick={() => setViewImageOpen(false)}
-                aria-label="Close"
-              >
-                Close
-              </button>
-            </div>
-            <img
-              src={profileImageSrc(user.profileImage)}
-              alt="Your profile"
-              style={{ width: "100%", height: "auto", display: "block", borderRadius: 8 }}
-            />
-          </div>
-        </div>
-      ) : null}
-
-      {pendingImage && pendingPreviewUrl ? (
-        <div
-          style={overlayStyle}
-          role="dialog"
-          aria-modal="true"
-          aria-label="Preview photo"
-          onClick={() => {
-            if (!profilePhotoBusy) closePendingImageModal();
-          }}
-        >
-          <div
-            className="card"
-            style={{ maxWidth: "min(90vw, 420px)", margin: 0 }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 style={{ marginTop: 0 }}>Preview</h2>
-            <img
-              src={pendingPreviewUrl}
-              alt="Selected preview"
-              style={{
-                width: "100%",
-                maxHeight: "50vh",
-                objectFit: "contain",
-                borderRadius: 8,
-                marginBottom: 12,
-                border: "1px solid var(--border)",
-                boxSizing: "border-box",
-                background: "var(--bg)",
-              }}
-            />
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <button
-                type="button"
-                className="btn btnPrimary"
-                disabled={profilePhotoBusy}
-                onClick={uploadPendingProfileImage}
-              >
-                {profilePhotoBusy ? "Uploading..." : "Upload"}
-              </button>
-              <button
-                type="button"
-                className="btn"
-                disabled={profilePhotoBusy}
-                onClick={closePendingImageModal}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
       ) : null}
     </div>
   );
