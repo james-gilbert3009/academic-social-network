@@ -418,7 +418,7 @@ export default function Profile() {
                       <>
                         <h2 style={{ marginBottom: 6 }}>{user.name}</h2>
                         <div className="muted">{user.email}</div>
-                        <div className="muted"> {user.role}</div>
+                        <div className="muted">Role: {user.role}</div>
                       </>
                     ) : (
                       <>
