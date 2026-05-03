@@ -2,6 +2,7 @@ import express from "express";
 import multer from "multer";
 import User from "../models/User.js";
 import { requireAuth } from "../middleware/auth.js";
+import computeIsProfileComplete from "../utils/isProfileComplete.js";
 
 const router = express.Router();
 
@@ -34,8 +35,17 @@ function normalizeStringArray(value) {
 
 router.get("/me", requireAuth, async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select("-password");
+    let user = await User.findById(req.user.id).select("-password");
     if (!user) return res.status(404).json({ message: "User not found" });
+
+    const shouldBeComplete = computeIsProfileComplete(user.toObject());
+    if (Boolean(user.isProfileComplete) !== shouldBeComplete) {
+      user = await User.findByIdAndUpdate(
+        req.user.id,
+        { isProfileComplete: shouldBeComplete },
+        { new: true, runValidators: true, select: "-password" }
+      );
+    }
 
     return res.json({ user });
   } catch (error) {
@@ -48,6 +58,9 @@ router.get("/me", requireAuth, async (req, res) => {
 
 router.put("/me", requireAuth, upload.single("profileImage"), async (req, res) => {
   try {
+    const existing = await User.findById(req.user.id).select("-password").lean();
+    if (!existing) return res.status(404).json({ message: "User not found" });
+
     const updates = {};
 
     const allowed = ["name", "bio", "faculty", "program", "skills", "interests"];
@@ -85,7 +98,8 @@ router.put("/me", requireAuth, upload.single("profileImage"), async (req, res) =
       updates.profileImage = "";
     }
 
-    updates.isProfileComplete = true;
+    const merged = { ...existing, ...updates };
+    updates.isProfileComplete = computeIsProfileComplete(merged);
 
     const user = await User.findByIdAndUpdate(req.user.id, updates, {
       new: true,

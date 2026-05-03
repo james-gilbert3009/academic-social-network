@@ -46,10 +46,12 @@ export default function Profile() {
     interests: "",
   });
 
-  const canSave = useMemo(() => !saving && !loading, [saving, loading]);
+  const canSave = useMemo(() => !saving, [saving]);
 
   const photoStatus =
     status === "Profile photo updated." || status === "Profile photo removed.";
+
+  const showSetupReminder = Boolean(user) && user.isProfileComplete !== true;
 
   const hasProfilePicture = Boolean(user?.profileImage);
   const avatarDisplaySrc =
@@ -197,6 +199,14 @@ export default function Profile() {
   function startEdit() {
     if (!user) return;
     setStatus("");
+    setForm({
+      name: user?.name || "",
+      bio: user?.bio || "",
+      faculty: user?.faculty || "",
+      program: user?.program || "",
+      skills: toCommaList(user?.skills),
+      interests: toCommaList(user?.interests),
+    });
     setEditing(true);
   }
 
@@ -270,29 +280,30 @@ export default function Profile() {
 
       {loading ? <div className="muted">Loading...</div> : null}
 
+      {showSetupReminder ? (
+        <section className="card">
+          <div className="topbar" style={{ padding: 0, alignItems: "flex-start" }}>
+            <div>
+              <h2 style={{ marginBottom: 6 }}>Complete your profile</h2>
+              <div className="muted">
+                Your profile is incomplete. Complete your profile to help students and staff know more about you.
+              </div>
+            </div>
+            <div className="actionsRow">
+              <button
+                className="btn btnPrimary"
+                type="button"
+                onClick={() => navigate("/profile-setup")}
+              >
+                Complete profile
+              </button>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
       {user ? (
         <>
-          {!user.isProfileComplete ? (
-            <section className="card">
-              <div className="topbar" style={{ padding: 0 }}>
-                <div>
-                  <h2 style={{ marginBottom: 6 }}>Complete your profile</h2>
-                  <div className="muted">
-                    Your profile is incomplete. Complete your profile to help students and staff know more about you.
-                  </div>
-                </div>
-                <div className="actionsRow">
-                  <button
-                    className="btn btnPrimary"
-                    type="button"
-                    onClick={() => navigate("/profile-setup")}
-                  >
-                    Complete profile
-                  </button>
-                </div>
-              </div>
-            </section>
-          ) : null}
 
           <section className="card">
             <div className="row">
@@ -400,18 +411,14 @@ export default function Profile() {
                 ) : null}
               </div>
 
-              <form
-                className={editing ? "form" : undefined}
-                style={{ flex: 1, minWidth: 220, margin: 0 }}
-                onSubmit={submitProfile}
-              >
+              <div style={{ flex: 1, minWidth: 220, margin: 0 }}>
                 <div className="topbar" style={{ padding: 0 }}>
                   <div>
                     {!editing ? (
                       <>
                         <h2 style={{ marginBottom: 6 }}>{user.name}</h2>
                         <div className="muted">{user.email}</div>
-                        <div className="muted">Role: {user.role}</div>
+                        <div className="muted"> {user.role}</div>
                       </>
                     ) : (
                       <>
@@ -424,7 +431,7 @@ export default function Profile() {
                           />
                         </label>
                         <div className="muted">{user.email}</div>
-                        <div className="muted">Role: {user.role}</div>
+                        <div className="muted"> {user.role}</div>
                       </>
                     )}
                   </div>
@@ -435,7 +442,15 @@ export default function Profile() {
                       </button>
                     ) : (
                       <>
-                        <button className="btn btnPrimary" type="submit" disabled={!canSave}>
+                        <button
+                          className="btn btnPrimary"
+                          type="button"
+                          disabled={!canSave}
+                          onClick={() => {
+                            const ev = { preventDefault() {} };
+                            save(ev);
+                          }}
+                        >
                           {saving ? "Saving..." : "Save"}
                         </button>
                         <button className="btn" type="button" onClick={cancelEdit} disabled={saving}>
@@ -446,7 +461,12 @@ export default function Profile() {
                   </div>
                 </div>
 
-                <div className="grid2" style={{ marginTop: 12 }}>
+                <form
+                  className={editing ? "form" : undefined}
+                  style={{ marginTop: 12, width: "100%", maxWidth: 520 }}
+                  onSubmit={submitProfile}
+                >
+                <div className="grid2" style={{ marginTop: 0 }}>
                   <div>
                     <div className="muted" style={{ marginBottom: 6 }}>
                       Bio
@@ -564,7 +584,8 @@ export default function Profile() {
                     {status}
                   </div>
                 ) : null}
-              </form>
+                </form>
+              </div>
             </div>
           </section>
 
