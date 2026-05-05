@@ -165,6 +165,59 @@ router.get("/:id/mutual", requireAuth, async (req, res) => {
   }
 });
 
+// GET /api/users/:id/connections
+// If :id is the logged-in user -> Connections = mutual follow (followers ∩ following).
+// If :id is another user -> Mutual Connections = shared following (me.following ∩ target.following).
+router.get("/:id/connections", requireAuth, async (req, res) => {
+  try {
+    const targetId = String(req.params.id || "");
+    const currentUserId = String(req.user.id || "");
+    if (!targetId) return res.status(400).json({ message: "Missing target user id" });
+
+    // Own profile: mutual follow
+    if (targetId === currentUserId) {
+      const me = await User.findById(currentUserId).select("followers following");
+      if (!me) return res.status(404).json({ message: "Current user not found" });
+
+      const followersSet = new Set((me.followers || []).map((id) => String(id)));
+      const connectionIds = (me.following || [])
+        .map((id) => String(id))
+        .filter((id) => followersSet.has(id));
+
+      if (!connectionIds.length) return res.json({ users: [] });
+
+      const users = await User.find({ _id: { $in: connectionIds } })
+        .select(SAFE_USER_FIELDS)
+        .sort({ name: 1 });
+
+      return res.json({ users });
+    }
+
+    // Other profile: shared following
+    const [me, target] = await Promise.all([
+      User.findById(currentUserId).select("following"),
+      User.findById(targetId).select("following"),
+    ]);
+
+    if (!me) return res.status(404).json({ message: "Current user not found" });
+    if (!target) return res.status(404).json({ message: "User not found" });
+
+    const meFollowing = (me.following || []).map((id) => String(id));
+    const targetFollowing = new Set((target.following || []).map((id) => String(id)));
+    const sharedIds = meFollowing.filter((id) => targetFollowing.has(id));
+
+    if (!sharedIds.length) return res.json({ users: [] });
+
+    const users = await User.find({ _id: { $in: sharedIds } })
+      .select(SAFE_USER_FIELDS)
+      .sort({ name: 1 });
+
+    return res.json({ users });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to load connections", error: error.message });
+  }
+});
+
 // Profile setup / update (multipart/form-data)
 router.put("/me", requireAuth, upload.single("profileImage"), async (req, res) => {
   try {

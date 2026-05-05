@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { API_BASE_URL, setAuthToken } from "../api";
 import { getProfile, getProfileById, updateProfile } from "../api/profile";
 import { deletePost, getPostsByUser } from "../api/posts";
-import { getFollowers, getFollowing, getMutualUsers, toggleFollow } from "../api/users";
+import { getConnections, getFollowers, getFollowing, toggleFollow } from "../api/users";
 import ConfirmDialog from "../components/ConfirmDialog";
 import CreatePostForm from "../components/CreatePostForm";
 import NotificationsDropdown from "../components/NotificationsDropdown.jsx";
@@ -51,6 +51,7 @@ export default function Profile() {
   const [isFriend, setIsFriend] = useState(false);
   const [followListOpen, setFollowListOpen] = useState(false);
   const [followListTitle, setFollowListTitle] = useState("");
+  const [followListHelper, setFollowListHelper] = useState("");
   const [followListUsers, setFollowListUsers] = useState([]);
   const [followListLoading, setFollowListLoading] = useState(false);
   const [followListBusyIds, setFollowListBusyIds] = useState([]);
@@ -74,11 +75,40 @@ export default function Profile() {
 
   const canSave = useMemo(() => !saving, [saving]);
 
+  const isOwnProfile = !routeUserId || String(routeUserId) === String(me?._id || "");
+  const readOnlyProfile = Boolean(routeUserId) && !isOwnProfile;
+
+  const connectionsCount = useMemo(() => {
+    if (!isOwnProfile) return 0;
+    if (typeof user?.friendsCount === "number") return user.friendsCount;
+
+    const followers = Array.isArray(user?.followers) ? user.followers.map((id) => String(id)) : [];
+    const following = Array.isArray(user?.following) ? user.following.map((id) => String(id)) : [];
+    if (!followers.length || !following.length) return 0;
+    const followerSet = new Set(followers);
+    let count = 0;
+    for (const id of following) {
+      if (followerSet.has(id)) count += 1;
+    }
+    return count;
+  }, [isOwnProfile, user?.friendsCount, user?.followers, user?.following]);
+
+  const mutualConnectionsCount = useMemo(() => {
+    if (!readOnlyProfile) return 0;
+    const myFollowing = Array.isArray(me?.following) ? me.following.map((id) => String(id)) : [];
+    const theirFollowing = Array.isArray(user?.following) ? user.following.map((id) => String(id)) : [];
+    if (!myFollowing.length || !theirFollowing.length) return 0;
+    const mySet = new Set(myFollowing);
+    let count = 0;
+    for (const id of theirFollowing) {
+      if (mySet.has(String(id))) count += 1;
+    }
+    return count;
+  }, [me?.following, readOnlyProfile, user?.following]);
+
   const photoStatus =
     status === "Profile photo updated." || status === "Profile photo removed.";
 
-  const isOwnProfile = !routeUserId || String(routeUserId) === String(me?._id || "");
-  const readOnlyProfile = Boolean(routeUserId) && !isOwnProfile;
   const showSetupReminder = Boolean(user) && isOwnProfile && user.isProfileComplete !== true;
 
   const hasProfilePicture = Boolean(user?.profileImage);
@@ -217,7 +247,7 @@ export default function Profile() {
     if (followBusy) return;
 
     if (isFriend) {
-      const ok = window.confirm("Remove this friend by unfollowing?");
+      const ok = window.confirm("Disconnect by unfollowing?");
       if (!ok) return;
     }
 
@@ -276,15 +306,16 @@ export default function Profile() {
 
   const followButtonLabel = useMemo(() => {
     if (!readOnlyProfile) return "";
-    if (isFriend) return "Friends";
-    if (isFollower && !isFollowing) return "Follow Back";
+    if (isFriend) return "Connected";
+    if (isFollower && !isFollowing) return "Connect Back";
     if (isFollowing) return "Following";
-    return "Follow";
+    return "Connect";
   }, [isFriend, isFollower, isFollowing, readOnlyProfile]);
 
   function closeFollowList() {
     setFollowListOpen(false);
     setFollowListTitle("");
+    setFollowListHelper("");
     setFollowListUsers([]);
     setFollowListLoading(false);
   }
@@ -295,17 +326,34 @@ export default function Profile() {
     setFollowListOpen(true);
     setFollowListLoading(true);
 
-    if (kind === "followers") setFollowListTitle("Followers");
-    else if (kind === "following") setFollowListTitle("Following");
-    else setFollowListTitle("Mutual connections");
+    if (kind === "followers") {
+      setFollowListTitle("Followers");
+      setFollowListHelper("");
+    } else if (kind === "following") {
+      setFollowListTitle("Following");
+      setFollowListHelper("");
+    } else if (kind === "connections") {
+      setFollowListTitle("Connections");
+      setFollowListHelper("People you follow who also follow you.");
+    } else {
+      setFollowListTitle("Mutual Connections");
+      setFollowListHelper("People both of you follow.");
+    }
 
     try {
-      const res =
-        kind === "followers"
-          ? await getFollowers(user._id)
-          : kind === "following"
-            ? await getFollowing(user._id)
-            : await getMutualUsers(user._id);
+      if (kind === "followers") {
+        const res = await getFollowers(user._id);
+        setFollowListUsers(res.data?.users || []);
+        return;
+      }
+
+      if (kind === "following") {
+        const res = await getFollowing(user._id);
+        setFollowListUsers(res.data?.users || []);
+        return;
+      }
+
+      const res = await getConnections(user._id);
       setFollowListUsers(res.data?.users || []);
     } catch (err) {
       const msg = err?.response?.data?.message || err?.message || "Failed to load list";
@@ -321,8 +369,8 @@ export default function Profile() {
     if (!me?._id) return;
     if (String(userId) === String(me._id)) return;
 
-    if (label === "Friends") {
-      const ok = window.confirm("Remove this friend by unfollowing?");
+    if (label === "Connected") {
+      const ok = window.confirm("Disconnect by unfollowing?");
       if (!ok) return;
     }
 
@@ -526,6 +574,28 @@ export default function Profile() {
               style={{ padding: 0, marginBottom: 12, alignItems: "center" }}
             >
               <div className="muted" style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
+                {isOwnProfile ? (
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => openFollowList("connections")}
+                    style={{ padding: "8px 10px" }}
+                  >
+                    <strong style={{ color: "var(--text)" }}>{connectionsCount}</strong>{" "}
+                    Connections
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => openFollowList("mutualConnections")}
+                    style={{ padding: "8px 10px" }}
+                  >
+                    <strong style={{ color: "var(--text)" }}>{mutualConnectionsCount}</strong>{" "}
+                    Mutual Connections
+                  </button>
+                )}
+
                 <button
                   type="button"
                   className="btn"
@@ -539,7 +609,7 @@ export default function Profile() {
                         ? user.followers.length
                         : 0}
                   </strong>{" "}
-                  followers
+                  Followers
                 </button>
 
                 <button
@@ -555,19 +625,8 @@ export default function Profile() {
                         ? user.following.length
                         : 0}
                   </strong>{" "}
-                  following
+                  Following
                 </button>
-
-                {readOnlyProfile ? (
-                  <button
-                    type="button"
-                    className="btn"
-                    onClick={() => openFollowList("mutual")}
-                    style={{ padding: "8px 10px" }}
-                  >
-                    Mutual connections
-                  </button>
-                ) : null}
               </div>
 
               {readOnlyProfile ? (
@@ -698,6 +757,7 @@ export default function Profile() {
       <FollowListModal
         open={followListOpen}
         title={followListTitle}
+        helperText={followListHelper}
         users={followListUsers}
         loading={followListLoading}
         onClose={closeFollowList}

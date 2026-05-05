@@ -21,6 +21,7 @@ function displaySubline(user) {
 export default function FollowListModal({
   open,
   title,
+  helperText,
   users,
   loading,
   onClose,
@@ -46,10 +47,10 @@ export default function FollowListModal({
     const isFollower = meFollowers.includes(String(userId));
     const isFriend = Boolean(isFollowing && isFollower);
 
-    if (isFriend) return "Friends";
-    if (isFollower && !isFollowing) return "Follow Back";
+    if (isFriend) return "Connected";
+    if (isFollower && !isFollowing) return "Connect Back";
     if (isFollowing) return "Following";
-    return "Follow";
+    return "Connect";
   }
 
   function handleOpenProfile(userId) {
@@ -61,12 +62,18 @@ export default function FollowListModal({
   return (
     <div className="modalOverlay" role="dialog" aria-modal="true" onClick={onClose}>
       <div className="modalCard" onClick={(e) => e.stopPropagation()} style={{ textAlign: "left" }}>
-        <div className="topbar" style={{ marginBottom: 10 }}>
+        <div className="topbar" style={{ marginBottom: helperText ? 4 : 10 }}>
           <h2 style={{ marginBottom: 0 }}>{title || "Users"}</h2>
           <button className="btn" type="button" onClick={onClose}>
             Close
           </button>
         </div>
+
+        {helperText ? (
+          <div className="muted" style={{ marginBottom: 10 }}>
+            {helperText}
+          </div>
+        ) : null}
 
         {loading ? <div className="muted">Loading...</div> : null}
 
@@ -132,7 +139,7 @@ export default function FollowListModal({
                   {showAction ? (
                     <button
                       type="button"
-                      className={`btn ${label === "Follow" || label === "Follow Back" ? "btnPrimary" : ""}`}
+                      className={`btn ${label === "Connect" || label === "Connect Back" ? "btnPrimary" : ""}`}
                       disabled={isBusy}
                       aria-busy={isBusy ? "true" : "false"}
                       onClick={(e) => {

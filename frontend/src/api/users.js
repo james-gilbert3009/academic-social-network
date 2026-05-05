@@ -23,3 +23,7 @@ export function getMutualUsers(userId) {
   return api.get(`/api/users/${userId}/mutual`);
 }
 
+export function getConnections(userId) {
+  return api.get(`/api/users/${userId}/connections`);
+}
+
