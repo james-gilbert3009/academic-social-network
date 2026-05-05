@@ -5,8 +5,34 @@ import { addComment, deleteComment, toggleLike } from "../api/posts";
 import ConfirmDialog from "./ConfirmDialog";
 import RoleBadge from "./RoleBadge";
 import timeAgo from "../utils/timeAgo";
+import {
+  FaBook,
+  FaBullhorn,
+  FaCalendarAlt,
+  FaFlask,
+  FaQuestionCircle,
+  FaRegFileAlt,
+} from "react-icons/fa";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+
+const CATEGORY_LABELS = {
+  question: "Question",
+  research: "Research",
+  announcement: "Announcement",
+  study: "Study Material",
+  event: "Event",
+  general: "General",
+};
+
+const CATEGORY_ICONS = {
+  question: FaQuestionCircle,
+  research: FaFlask,
+  announcement: FaBullhorn,
+  study: FaBook,
+  event: FaCalendarAlt,
+  general: FaRegFileAlt,
+};
 
 function uploadUrl(path) {
   if (!path) return "";
@@ -59,6 +85,9 @@ export default function PostDetailsModal({ post, currentUser, onClose, onPostUpd
 
   const caption = (post.content || "").trim();
   const hasImage = Boolean(post.image && String(post.image).trim());
+  const categoryKey = String(post?.category || "general").toLowerCase();
+  const categoryLabel = CATEGORY_LABELS[categoryKey] || CATEGORY_LABELS.general;
+  const CategoryIcon = CATEGORY_ICONS[categoryKey] || CATEGORY_ICONS.general;
 
   const commentTrimmed = commentText.trim();
   const commentSubmitDisabled = commentBusy || !commentTrimmed;
@@ -172,6 +201,13 @@ export default function PostDetailsModal({ post, currentUser, onClose, onPostUpd
               <img src={uploadUrl(post.image)} alt="Post attachment" />
             </div>
           ) : null}
+
+          <div style={{ marginBottom: 10 }}>
+            <span className={`postCategoryBadge postCategoryBadge--${categoryKey}`}>
+              <CategoryIcon style={{ marginRight: 6 }} aria-hidden="true" />
+              {categoryLabel}
+            </span>
+          </div>
 
           {caption ? (
             <div className="postDetailsModal__content">{post.content}</div>

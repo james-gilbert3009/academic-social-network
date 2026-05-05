@@ -10,6 +10,15 @@ import { requireAuth } from "../middleware/auth.js";
 
 const router = express.Router();
 
+const ALLOWED_POST_CATEGORIES = new Set([
+  "question",
+  "research",
+  "announcement",
+  "study",
+  "event",
+  "general",
+]);
+
 async function deleteUploadsFileIfLocal(fileUrlOrPath) {
   try {
     if (typeof fileUrlOrPath !== "string") return;
@@ -83,8 +92,22 @@ router.post("/", requireAuth, uploadSinglePostImage, async (req, res) => {
       return res.status(400).json({ message: "Add a caption or an image" });
     }
 
+    const rawCategory = req.body?.category;
+    const category =
+      rawCategory === undefined || rawCategory === null || String(rawCategory).trim() === ""
+        ? "general"
+        : String(rawCategory).trim().toLowerCase();
+
+    if (!ALLOWED_POST_CATEGORIES.has(category)) {
+      return res.status(400).json({
+        message:
+          'Invalid category. Allowed: "question", "research", "announcement", "study", "event", "general".',
+      });
+    }
+
     const post = await Post.create({
       author: req.user.id,
+      category,
       content,
       image: hasImage ? `/uploads/${req.file.filename}` : "",
     });

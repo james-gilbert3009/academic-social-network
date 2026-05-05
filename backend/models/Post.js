@@ -28,6 +28,11 @@ const postSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    category: {
+      type: String,
+      enum: ["question", "research", "announcement", "study", "event", "general"],
+      default: "general",
+    },
     content: {
       type: String,
       default: "",

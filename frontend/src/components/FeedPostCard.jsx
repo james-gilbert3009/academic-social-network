@@ -1,8 +1,34 @@
 import { useNavigate } from "react-router-dom";
 import timeAgo from "../utils/timeAgo";
 import RoleBadge from "./RoleBadge";
+import {
+  FaBook,
+  FaBullhorn,
+  FaCalendarAlt,
+  FaFlask,
+  FaQuestionCircle,
+  FaRegFileAlt,
+} from "react-icons/fa";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+
+const CATEGORY_LABELS = {
+  question: "Question",
+  research: "Research",
+  announcement: "Announcement",
+  study: "Study Material",
+  event: "Event",
+  general: "General",
+};
+
+const CATEGORY_ICONS = {
+  question: FaQuestionCircle,
+  research: FaFlask,
+  announcement: FaBullhorn,
+  study: FaBook,
+  event: FaCalendarAlt,
+  general: FaRegFileAlt,
+};
 
 function uploadUrl(path) {
   if (!path) return "";
@@ -44,6 +70,9 @@ export default function FeedPostCard({
   const hasImage = Boolean(post.image && String(post.image).trim());
   const timeLabel = timeAgo(post.createdAt);
   const authorProfileId = authorId ? String(authorId) : "";
+  const categoryKey = String(post?.category || "general").toLowerCase();
+  const categoryLabel = CATEGORY_LABELS[categoryKey] || CATEGORY_LABELS.general;
+  const CategoryIcon = CATEGORY_ICONS[categoryKey] || CATEGORY_ICONS.general;
 
   return (
     <article className="card feedPostCard">
@@ -89,6 +118,13 @@ export default function FeedPostCard({
           </div>
         ) : null}
       </header>
+
+      <div style={{ marginTop: 12 }}>
+        <span className={`postCategoryBadge postCategoryBadge--${categoryKey}`}>
+          <CategoryIcon style={{ marginRight: 6 }} aria-hidden="true" />
+          {categoryLabel}
+        </span>
+      </div>
 
       {caption ? (
         <div className="feedPostCard__body">{post.content}</div>

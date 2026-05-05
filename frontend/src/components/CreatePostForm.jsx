@@ -9,6 +9,7 @@ export default function CreatePostForm({
 }) {
   const fileInputRef = useRef(null);
   const [content, setContent] = useState("");
+  const [category, setCategory] = useState("general");
   const [imageFile, setImageFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -38,6 +39,7 @@ export default function CreatePostForm({
 
   function clearForm() {
     setContent("");
+    setCategory("general");
     setImageFile(null);
     setError("");
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -86,6 +88,7 @@ export default function CreatePostForm({
       const fd = new FormData();
       if (hasText) fd.append("content", content.trim());
       if (imageFile) fd.append("image", imageFile);
+      fd.append("category", category || "general");
 
       const res = await createPost(fd);
       const post = res.data.post;
@@ -104,6 +107,26 @@ export default function CreatePostForm({
   return (
     <form onSubmit={submit}>
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <span style={{ fontSize: 14, color: "var(--text)" }}>Category</span>
+            <select
+              className="input"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              disabled={submitting}
+              style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border)" }}
+            >
+              <option value="question">Question</option>
+              <option value="research">Research</option>
+              <option value="announcement">Announcement</option>
+              <option value="study">Study Material</option>
+              <option value="event">Event</option>
+              <option value="general">General</option>
+            </select>
+          </label>
+        </div>
+
         <textarea
           className="input"
           rows={3}
