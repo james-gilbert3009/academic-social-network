@@ -475,10 +475,7 @@ export default function Profile() {
   return (
     <div className="page">
       <div className="topbar">
-        <h1 style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <span>{readOnlyProfile ? `${user?.name || "Profile"}` : "My Profile"}</span>
-          {readOnlyProfile ? <RoleBadge role={user?.role} /> : null}
-        </h1>
+        <h1>{readOnlyProfile ? "Profile" : "My Profile"}</h1>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {me ? <NotificationsDropdown /> : null}
           {me ? <UserSearch /> : null}

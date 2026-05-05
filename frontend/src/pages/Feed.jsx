@@ -28,6 +28,17 @@ export default function Feed() {
   const [editSaving, setEditSaving] = useState(false);
 
   const [postPendingDelete, setPostPendingDelete] = useState(null);
+  const [selectedCategory, setSelectedCategory] = useState("all");
+
+  const CATEGORY_OPTIONS = [
+    { label: "All", value: "all" },
+    { label: "Questions", value: "question" },
+    { label: "Research", value: "research" },
+    { label: "Announcements", value: "announcement" },
+    { label: "Study Material", value: "study" },
+    { label: "Events", value: "event" },
+    { label: "General", value: "general" },
+  ];
 
   useEffect(() => {
     let cancelled = false;
@@ -177,6 +188,13 @@ export default function Feed() {
   const editHasImage = Boolean(editingPost?.image && String(editingPost.image).trim());
   const canSaveEdit = Boolean(editContent.trim() || editHasImage);
 
+  const filteredPosts =
+    selectedCategory === "all"
+      ? posts
+      : (posts || []).filter(
+          (p) => String(p?.category || "general").toLowerCase() === selectedCategory
+        );
+
   return (
     <div className="page">
       <div className="topbar">
@@ -198,6 +216,22 @@ export default function Feed() {
 
       <p>Welcome to the academic network</p>
 
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "8px 0 14px" }}>
+        {CATEGORY_OPTIONS.map((opt) => {
+          const active = selectedCategory === opt.value;
+          return (
+            <button
+              key={opt.value}
+              type="button"
+              className={active ? "btn btnPrimary" : "btn"}
+              onClick={() => setSelectedCategory(opt.value)}
+            >
+              {opt.label}
+            </button>
+          );
+        })}
+      </div>
+
       {loading ? <div className="muted">Loading posts...</div> : null}
       {error ? <div className="alert alertError">{error}</div> : null}
 
@@ -209,8 +243,14 @@ export default function Feed() {
         </section>
       ) : null}
 
+      {!loading && !error && posts.length > 0 && filteredPosts.length === 0 ? (
+        <section className="card">
+          <div className="emptyState">No posts found for this category.</div>
+        </section>
+      ) : null}
+
       <div className="feedStack">
-        {posts.map((post) => (
+        {filteredPosts.map((post) => (
           <FeedPostCard
             key={post._id}
             post={post}

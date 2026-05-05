@@ -5,8 +5,10 @@ export function toggleFollow(userId) {
   return api.put(`/api/users/${userId}/follow`);
 }
 
-export function searchUsers(query) {
-  return api.get("/api/users/search", { params: { q: query } });
+export function searchUsers(query, role) {
+  const normalizedRole = String(role || "").trim().toLowerCase();
+  const roleParam = normalizedRole && normalizedRole !== "all" ? normalizedRole : undefined;
+  return api.get("/api/users/search", { params: { q: query, role: roleParam } });
 }
 
 export function getFollowers(userId) {

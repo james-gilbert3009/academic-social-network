@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "../api";
 import { searchUsers } from "../api/users";
 import RoleBadge from "./RoleBadge";
+import { FaFilter } from "react-icons/fa";
 
 function profileImageSrc(profileImage) {
   if (!profileImage) return null;
@@ -13,6 +14,7 @@ function profileImageSrc(profileImage) {
 export default function UserSearch() {
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
+  const [role, setRole] = useState("all");
   const [loading, setLoading] = useState(false);
   const [users, setUsers] = useState([]);
   const [error, setError] = useState("");
@@ -34,7 +36,7 @@ export default function UserSearch() {
       setLoading(true);
       setError("");
       try {
-        const res = await searchUsers(trimmed);
+        const res = await searchUsers(trimmed, role);
         if (lastRequestIdRef.current !== requestId) return;
         setUsers(res.data?.users || []);
       } catch (err) {
@@ -47,7 +49,7 @@ export default function UserSearch() {
     }, 300);
 
     return () => window.clearTimeout(handle);
-  }, [trimmed]);
+  }, [trimmed, role]);
 
   function openProfile(userId) {
     if (!userId) return;
@@ -65,7 +67,7 @@ export default function UserSearch() {
   }
 
   return (
-    <div style={{ position: "relative", minWidth: 220, maxWidth: 340, flex: "1 1 260px" }}>
+    <div style={{ position: "relative", minWidth: 220, maxWidth: 420, flex: "1 1 300px" }}>
       <input
         ref={inputRef}
         value={query}
@@ -75,7 +77,7 @@ export default function UserSearch() {
         style={{
           width: "100%",
           boxSizing: "border-box",
-          padding: query ? "10px 38px 10px 12px" : "10px 12px",
+          padding: "10px 170px 10px 12px",
           borderRadius: 10,
           border: "1px solid var(--border)",
           background: "var(--bg)",
@@ -83,6 +85,55 @@ export default function UserSearch() {
           font: "14px/1.2 system-ui",
         }}
       />
+
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          right: 0,
+          height: "100%",
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          paddingRight: 6,
+        }}
+      >
+        <span
+          aria-hidden="true"
+          title="Role filter"
+          style={{
+            width: 28,
+            height: 28,
+            display: "grid",
+            placeItems: "center",
+            borderRadius: 8,
+            color: "var(--text-h)",
+            opacity: 0.9,
+          }}
+        >
+          <FaFilter size={14} />
+        </span>
+
+        <select
+          value={role}
+          onChange={(e) => setRole(e.target.value)}
+          aria-label="Filter by role"
+          style={{
+            height: 32,
+            padding: "0 8px",
+            borderRadius: 8,
+            border: "1px solid var(--border)",
+            background: "var(--bg)",
+            color: "var(--text-h)",
+            font: "13px/1.2 system-ui",
+          }}
+        >
+          <option value="all">All roles</option>
+          <option value="student">Student</option>
+          <option value="lecturer">Lecturer</option>
+          <option value="professor">Professor</option>
+        </select>
+      </div>
 
       {query ? (
         <button
@@ -94,7 +145,7 @@ export default function UserSearch() {
           style={{
             position: "absolute",
             top: 6,
-            right: 6,
+            right: 140,
             width: 32,
             height: 32,
             padding: 0,

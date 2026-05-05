@@ -76,9 +76,15 @@ router.get("/search", requireAuth, async (req, res) => {
     const q = escapeRegex(qRaw);
     const rx = new RegExp(q, "i");
 
-    const users = await User.find({
+    const roleRaw = String(req.query?.role || "").trim().toLowerCase();
+    const role = roleRaw && roleRaw !== "all" ? roleRaw : "";
+
+    const query = {
       $or: [{ name: rx }, { username: rx }],
-    })
+      ...(role ? { role } : {}),
+    };
+
+    const users = await User.find(query)
       .select("_id name username role profileImage faculty program")
       .limit(10)
       .sort({ name: 1 });
