@@ -236,3 +236,439 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+@media (max-width: 640px) {
+  .postsGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  z-index: 50;
+}
+
+.confirmDialogOverlay {
+  z-index: 100;
+}
+
+.confirmDialogCard {
+  width: 100%;
+  max-width: 420px;
+  text-align: left;
+}
+
+/* Shared empty states (feed, profile posts, modal comments) */
+.emptyState {
+  text-align: center;
+  padding: 28px 18px;
+  line-height: 1.5;
+  color: var(--text-h);
+}
+
+.emptyState--subtle {
+  color: var(--text);
+  opacity: 0.92;
+}
+
+.modalCard {
+  width: 720px;
+  max-width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--bg);
+  box-shadow: var(--shadow);
+  padding: 16px;
+}
+
+.postDetailsModalComments {
+  max-height: min(42vh, 320px);
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0;
+  background: color-mix(in oklab, var(--bg) 92%, var(--social-bg) 8%);
+  -webkit-overflow-scrolling: touch;
+}
+
+.postDetailsModalComments__empty {
+  text-align: center;
+  padding: 32px 16px;
+  margin: 0;
+  line-height: 1.5;
+  font-size: 0.98rem;
+  color: var(--text);
+  opacity: 0.92;
+}
+
+.postDetailsModalCommentRow {
+  padding: 12px 14px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.postDetailsModalCommentRow:first-child {
+  border-top: none;
+}
+
+/* Post details modal layout */
+.postDetailsModal {
+  display: flex;
+  flex-direction: column;
+  max-height: min(92vh, 900px);
+  text-align: left;
+}
+
+.postDetailsModal__scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.postDetailsModal__author {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.postDetailsModal__authorAvatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 999px;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+}
+
+.postDetailsModal__content {
+  white-space: pre-wrap;
+  color: var(--text-h);
+  line-height: 1.45;
+  font-size: 0.98rem;
+  margin-bottom: 14px;
+  word-break: break-word;
+}
+
+.postDetailsModal__content--empty {
+  color: var(--text);
+  opacity: 0.75;
+  font-style: italic;
+}
+
+.postDetailsModal__engagement {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  padding: 12px 0 14px;
+  margin-bottom: 4px;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.postDetailsModal__stats {
+  font-size: 0.9rem;
+  color: var(--text);
+  opacity: 0.9;
+  display: flex;
+  gap: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+.postDetailsModal__sectionTitle {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text);
+  opacity: 0.8;
+  margin: 14px 0 8px;
+  font-weight: 600;
+}
+
+.postDetailsModal__composer {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.postDetailsModal__composerRow {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: stretch;
+}
+
+.postDetailsModal__composerInput {
+  flex: 1;
+  min-width: 160px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-h);
+  font: 16px/1.25 system-ui, sans-serif;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.postDetailsModal__composerInput:focus {
+  border-color: var(--accent-border);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent-bg) 80%, transparent);
+}
+
+.postDetailsModal__composerInput:disabled {
+  opacity: 0.65;
+}
+
+@media (max-width: 640px) {
+  .postDetailsModal__composerRow {
+    flex-direction: column;
+  }
+
+  .postDetailsModal__composerRow .btnPrimary {
+    width: 100%;
+  }
+}
+
+/* Post image in details modal: fit inside modal width/height, show full image (no crop) */
+.postDetailsModalImageWrap {
+  width: 100%;
+  max-height: min(52vh, 520px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  box-sizing: border-box;
+}
+
+.postDetailsModalImageWrap img {
+  max-width: 100%;
+  max-height: min(52vh, 520px);
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  display: block;
+}
+
+/* —— Feed page: vertical post cards —— */
+.feedStack {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 640px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+@media (max-width: 640px) {
+  .feedStack {
+    gap: 16px;
+    max-width: none;
+  }
+}
+
+.feedPostCard {
+  text-align: left;
+  padding: 18px 18px 16px;
+}
+
+@media (max-width: 640px) {
+  .feedPostCard {
+    padding: 14px 14px 12px;
+    border-radius: 12px;
+  }
+}
+
+.feedPostCard__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.feedPostCard__authorRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+  flex: 1;
+}
+
+.feedPostCard__avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 999px;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  background: color-mix(in oklab, var(--bg) 88%, var(--social-bg) 12%);
+}
+
+@media (max-width: 640px) {
+  .feedPostCard__avatar {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+.feedPostCard__names {
+  min-width: 0;
+}
+
+.feedPostCard__displayName {
+  font-weight: 600;
+  color: var(--text-h);
+  font-size: 1rem;
+  line-height: 1.25;
+}
+
+.feedPostCard__username {
+  font-size: 0.9rem;
+  color: var(--text);
+  opacity: 0.88;
+  margin-top: 2px;
+}
+
+.feedPostCard__time {
+  font-size: 0.82rem;
+  color: var(--text);
+  opacity: 0.75;
+  margin-top: 4px;
+}
+
+.feedPostCard__ownerActions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 640px) {
+  .feedPostCard__header {
+    flex-wrap: wrap;
+  }
+
+  .feedPostCard__ownerActions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
+
+.feedPostCard__body {
+  margin-top: 14px;
+  color: var(--text-h);
+  font-size: 0.98rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.feedPostCard__body--empty {
+  font-style: italic;
+  opacity: 0.75;
+}
+
+.feedPostCard__media {
+  margin-top: 14px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--code-bg);
+}
+
+.feedPostCard__media img {
+  width: 100%;
+  max-height: min(56vh, 440px);
+  object-fit: contain;
+  display: block;
+}
+
+.feedPostCard__toolbar {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+}
+
+.feedPostCard__stats {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 0.88rem;
+  color: var(--text);
+  opacity: 0.92;
+}
+
+.feedPostCard__stats span {
+  font-variant-numeric: tabular-nums;
+}
+
+.feedPostCard__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: auto;
+}
+
+@media (max-width: 640px) {
+  .feedPostCard__toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .feedPostCard__actions {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .feedPostCard__actions .btn {
+    flex: 1;
+    min-width: 0;
+    justify-content: center;
+  }
+}
+
+.feedPostCard__preview {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+}
+
+.feedPostCard__previewLabel {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text);
+  opacity: 0.75;
+  margin-bottom: 8px;
+}
+
+.feedPostCard__previewItem {
+  font-size: 0.9rem;
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+  line-height: 1.35;
+}
+
+.feedPostCard__previewItem:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}

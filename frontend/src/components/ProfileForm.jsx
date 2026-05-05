@@ -15,12 +15,13 @@ export default function ProfileForm({
   onCancelEdit,
   onSave,
   onSubmitProfile,
+  readOnly = false,
 }) {
   return (
     <div style={{ flex: 1, minWidth: 220, margin: 0 }}>
       <div className="topbar" style={{ padding: 0 }}>
         <div>
-          {!editing ? (
+          {!editing || readOnly ? (
             <>
               <h2 style={{ marginBottom: 6 }}>{user.name}</h2>
               <div className="muted">{user.email}</div>
@@ -41,34 +42,36 @@ export default function ProfileForm({
             </>
           )}
         </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {!editing ? (
-            <button className="btn btnPrimary" type="button" onClick={onStartEdit}>
-              Edit profile
-            </button>
-          ) : (
-            <>
-              <button
-                className="btn btnPrimary"
-                type="button"
-                disabled={!canSave}
-                onClick={() => {
-                  const ev = { preventDefault() {} };
-                  onSave(ev);
-                }}
-              >
-                {saving ? "Saving..." : "Save"}
+        {!readOnly ? (
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {!editing ? (
+              <button className="btn btnPrimary" type="button" onClick={onStartEdit}>
+                Edit profile
               </button>
-              <button className="btn" type="button" onClick={onCancelEdit} disabled={saving}>
-                Cancel
-              </button>
-            </>
-          )}
-        </div>
+            ) : (
+              <>
+                <button
+                  className="btn btnPrimary"
+                  type="button"
+                  disabled={!canSave}
+                  onClick={() => {
+                    const ev = { preventDefault() {} };
+                    onSave(ev);
+                  }}
+                >
+                  {saving ? "Saving..." : "Save"}
+                </button>
+                <button className="btn" type="button" onClick={onCancelEdit} disabled={saving}>
+                  Cancel
+                </button>
+              </>
+            )}
+          </div>
+        ) : null}
       </div>
 
       <form
-        className={editing ? "form" : undefined}
+        className={editing && !readOnly ? "form" : undefined}
         style={{ marginTop: 12, width: "100%", maxWidth: 520 }}
         onSubmit={onSubmitProfile}
       >

@@ -56,6 +56,21 @@ router.get("/me", requireAuth, async (req, res) => {
   }
 });
 
+// GET /api/profile/:userId
+// Public-ish profile view for authenticated users (no password).
+router.get("/:userId", requireAuth, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId).select("-password");
+    if (!user) return res.status(404).json({ message: "User not found" });
+    return res.json({ user });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Failed to load profile",
+      error: error.message,
+    });
+  }
+});
+
 router.put("/me", requireAuth, upload.single("profileImage"), async (req, res) => {
   try {
     const existing = await User.findById(req.user.id).select("-password").lean();

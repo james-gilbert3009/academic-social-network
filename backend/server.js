@@ -8,6 +8,7 @@ import fs from "fs";
 import authRoutes from "./routes/auth.js";
 import profileRoutes from "./routes/profile.js";
 import userRoutes from "./routes/users.js";
+import postsRoutes from "./routes/posts.js";
 
 dotenv.config();
 
@@ -47,6 +48,7 @@ app.get("/", (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/posts", postsRoutes);
 
 mongoose
   .connect(process.env.MONGO_URI)

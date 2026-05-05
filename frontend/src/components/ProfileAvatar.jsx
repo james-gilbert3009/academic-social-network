@@ -37,6 +37,7 @@ export default function ProfileAvatar({
   profilePhotoBusy,
   onUploadPending,
   onRemoveProfilePicture,
+  readOnly = false,
 }) {
   const fileInputRef = useRef(null);
   const [avatarMenuOpen, setAvatarMenuOpen] = useState(false);
@@ -106,27 +107,31 @@ export default function ProfileAvatar({
       />
 
       <div style={{ position: "relative", alignSelf: "flex-start" }}>
-        <button
-          type="button"
-          onClick={() => setAvatarMenuOpen((v) => !v)}
-          aria-expanded={avatarMenuOpen}
-          aria-haspopup="true"
-          aria-label="Profile picture options"
-          disabled={loading || profilePhotoBusy}
-          style={{
-            padding: 0,
-            margin: 0,
-            border: "none",
-            background: "transparent",
-            cursor: loading ? "default" : "pointer",
-            borderRadius: "50%",
-            display: "block",
-          }}
-        >
+        {readOnly ? (
           <img className="avatar" src={avatarDisplaySrc} alt="" />
-        </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setAvatarMenuOpen((v) => !v)}
+            aria-expanded={avatarMenuOpen}
+            aria-haspopup="true"
+            aria-label="Profile picture options"
+            disabled={loading || profilePhotoBusy}
+            style={{
+              padding: 0,
+              margin: 0,
+              border: "none",
+              background: "transparent",
+              cursor: loading ? "default" : "pointer",
+              borderRadius: "50%",
+              display: "block",
+            }}
+          >
+            <img className="avatar" src={avatarDisplaySrc} alt="" />
+          </button>
+        )}
 
-        {avatarMenuOpen ? (
+        {!readOnly && avatarMenuOpen ? (
           <>
             <div
               role="presentation"

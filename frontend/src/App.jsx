@@ -28,6 +28,7 @@ export default function App() {
       <Route element={<RequireAuth />}>
         <Route path="/profile-setup" element={<ProfileSetup />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/profile/:userId" element={<Profile />} />
 
         <Route element={<RequireProfileComplete />}>
           <Route path="/feed" element={<Feed />} />

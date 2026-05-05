@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { API_BASE_URL, setAuthToken } from "../api";
-import { getProfile, updateProfile } from "../api/profile";
+import { getProfile, getProfileById, updateProfile } from "../api/profile";
+import { deletePost, getPostsByUser } from "../api/posts";
+import ConfirmDialog from "../components/ConfirmDialog";
+import CreatePostForm from "../components/CreatePostForm";
+import PostDetailsModal from "../components/PostDetailsModal";
+import ProfilePostCard from "../components/ProfilePostCard";
 import ProfileAvatar from "../components/ProfileAvatar";
 import ProfileForm from "../components/ProfileForm";
 
@@ -28,12 +33,21 @@ function profileImageSrc(profileImage) {
 
 export default function Profile() {
   const navigate = useNavigate();
+  const { userId: routeUserId } = useParams();
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [me, setMe] = useState(null);
   const [user, setUser] = useState(null);
   const [profilePhotoBusy, setProfilePhotoBusy] = useState(false);
+  const [profilePosts, setProfilePosts] = useState([]);
+  const [postsLoading, setPostsLoading] = useState(false);
+  const [postsError, setPostsError] = useState("");
+  const [showCreatePostModal, setShowCreatePostModal] = useState(false);
+  const [selectedPost, setSelectedPost] = useState(null);
+  const [showPostDetailsModal, setShowPostDetailsModal] = useState(false);
+  const [postPendingDelete, setPostPendingDelete] = useState(null);
 
   const [form, setForm] = useState({
     name: "",
@@ -49,7 +63,9 @@ export default function Profile() {
   const photoStatus =
     status === "Profile photo updated." || status === "Profile photo removed.";
 
-  const showSetupReminder = Boolean(user) && user.isProfileComplete !== true;
+  const isOwnProfile = !routeUserId || String(routeUserId) === String(me?._id || "");
+  const readOnlyProfile = Boolean(routeUserId) && !isOwnProfile;
+  const showSetupReminder = Boolean(user) && isOwnProfile && user.isProfileComplete !== true;
 
   const hasProfilePicture = Boolean(user?.profileImage);
   const avatarDisplaySrc =
@@ -60,9 +76,17 @@ export default function Profile() {
     setStatus("");
     setLoading(true);
     try {
-      const res = await getProfile();
-      const u = res.data.user;
+      // Always fetch the logged-in user first (for permissions + ownership checks).
+      const meRes = await getProfile();
+      const meUser = meRes.data.user;
+      setMe(meUser);
+
+      const viewingOther = Boolean(routeUserId) && String(routeUserId) !== String(meUser?._id || "");
+      const profileRes = viewingOther ? await getProfileById(routeUserId) : meRes;
+      const u = profileRes.data.user;
+
       setUser(u);
+      setEditing(false);
       setForm({
         name: u?.name || "",
         bio: u?.bio || "",
@@ -71,6 +95,10 @@ export default function Profile() {
         skills: toCommaList(u?.skills),
         interests: toCommaList(u?.interests),
       });
+
+      if (u?._id) {
+        await loadProfilePosts(u._id);
+      }
     } catch (err) {
       const msg = err?.response?.data?.message || err?.message || "Failed to load profile";
       setStatus(msg);
@@ -79,10 +107,86 @@ export default function Profile() {
     }
   }
 
+  async function loadProfilePosts(userId) {
+    if (!userId) return;
+    setPostsLoading(true);
+    setPostsError("");
+    try {
+      const res = await getPostsByUser(userId);
+      setProfilePosts(res.data.posts || []);
+    } catch (err) {
+      const msg = err?.response?.data?.message || err?.message || "Failed to load posts";
+      setPostsError(msg);
+    } finally {
+      setPostsLoading(false);
+    }
+  }
+
+  function openCreatePostModal() {
+    setShowCreatePostModal(true);
+  }
+
+  function closeCreatePostModal() {
+    setShowCreatePostModal(false);
+  }
+
+  async function handleProfilePostCreated(newPost) {
+    closeCreatePostModal();
+    if (newPost?._id) {
+      setProfilePosts((prev) => [newPost, ...prev]);
+      return;
+    }
+    await loadProfilePosts(user?._id);
+  }
+
+  function handleOpenPostDetails(post) {
+    setSelectedPost(post);
+    setShowPostDetailsModal(true);
+  }
+
+  function handleClosePostDetails() {
+    setSelectedPost(null);
+    setShowPostDetailsModal(false);
+  }
+
+  function handlePostUpdated(updatedPost) {
+    if (!updatedPost?._id) return;
+    setProfilePosts((prev) => prev.map((p) => (p._id === updatedPost._id ? updatedPost : p)));
+    setSelectedPost((prev) =>
+      prev && String(prev._id) === String(updatedPost._id) ? updatedPost : prev
+    );
+  }
+
+  function requestDeleteProfilePost(post) {
+    if (!post?._id) return;
+    setPostPendingDelete(post);
+  }
+
+  function cancelDeleteProfilePost() {
+    setPostPendingDelete(null);
+  }
+
+  async function confirmDeleteProfilePost() {
+    const post = postPendingDelete;
+    if (!post?._id) return;
+    setPostsError("");
+    try {
+      await deletePost(post._id);
+      setProfilePosts((prev) => prev.filter((p) => p._id !== post._id));
+      if (selectedPost && String(selectedPost._id) === String(post._id)) {
+        handleClosePostDetails();
+      }
+      setPostPendingDelete(null);
+    } catch (err) {
+      const msg = err?.response?.data?.message || err?.message || "Failed to delete post";
+      setPostsError(msg);
+    }
+  }
+
   useEffect(() => {
     loadProfile();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [routeUserId]);
 
   function logout() {
     localStorage.removeItem("token");
@@ -91,6 +195,7 @@ export default function Profile() {
   }
 
   async function uploadPendingProfileImage(file) {
+    if (readOnlyProfile) return false;
     if (!file || !user) return false;
     setProfilePhotoBusy(true);
     setStatus("");
@@ -111,6 +216,7 @@ export default function Profile() {
   }
 
   async function removeProfilePicture() {
+    if (readOnlyProfile) return;
     if (!window.confirm("Remove your profile picture? You can add a new one anytime.")) return;
     if (!user) return;
     setProfilePhotoBusy(true);
@@ -129,6 +235,7 @@ export default function Profile() {
 
   async function save(e) {
     e.preventDefault();
+    if (readOnlyProfile) return;
     if (!canSave) return;
     setStatus("");
     setSaving(true);
@@ -155,6 +262,7 @@ export default function Profile() {
 
   function startEdit() {
     if (!user) return;
+    if (readOnlyProfile) return;
     setStatus("");
     setForm({
       name: user?.name || "",
@@ -169,6 +277,7 @@ export default function Profile() {
 
   function cancelEdit() {
     if (!user) return;
+    if (readOnlyProfile) return;
     setStatus("");
     setForm({
       name: user?.name || "",
@@ -190,11 +299,16 @@ export default function Profile() {
   return (
     <div className="page">
       <div className="topbar">
-        <h1>My Profile</h1>
+        <h1>{readOnlyProfile ? `${user?.name || "Profile"}` : "My Profile"}</h1>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button className="btn" type="button" onClick={() => navigate("/feed")}>
             Back to feed
           </button>
+          {readOnlyProfile ? (
+            <button className="btn" type="button" onClick={() => navigate("/profile")}>
+              My profile
+            </button>
+          ) : null}
           <button className="btn" type="button" onClick={logout}>
             Logout
           </button>
@@ -238,6 +352,7 @@ export default function Profile() {
                 profilePhotoBusy={profilePhotoBusy}
                 onUploadPending={uploadPendingProfileImage}
                 onRemoveProfilePicture={removeProfilePicture}
+                readOnly={readOnlyProfile}
               />
 
               <ProfileForm
@@ -253,6 +368,7 @@ export default function Profile() {
                 onCancelEdit={cancelEdit}
                 onSave={save}
                 onSubmitProfile={submitProfile}
+                readOnly={readOnlyProfile}
               />
             </div>
           </section>
@@ -260,25 +376,36 @@ export default function Profile() {
           <section className="card">
             <div className="topbar" style={{ padding: 0 }}>
               <h2 style={{ marginBottom: 0 }}>Posts</h2>
-              <div className="muted">Photos & videos you share</div>
+              {!readOnlyProfile ? (
+                <div className="actionsRow">
+                  <button className="btn btnPrimary" type="button" onClick={openCreatePostModal}>
+                    Create
+                  </button>
+                </div>
+              ) : null}
             </div>
 
+            <div className="muted">Photos & videos you share</div>
+
+            {postsLoading ? <div className="muted" style={{ marginTop: 12 }}>Loading posts...</div> : null}
+            {postsError ? <div className="alert alertError" style={{ marginTop: 12 }}>{postsError}</div> : null}
+
+            {!postsLoading && !postsError && profilePosts.length === 0 ? (
+              <div className="emptyState emptyState--subtle" style={{ marginTop: 12 }}>
+                No posts yet.
+              </div>
+            ) : null}
+
             <div className="postsGrid" style={{ marginTop: 12 }}>
-              <div className="postTile">
-                <div className="muted" style={{ padding: 12, textAlign: "center" }}>
-                  Your photo/video posts will appear here.
-                </div>
-              </div>
-              <div className="postTile">
-                <div className="muted" style={{ padding: 12, textAlign: "center" }}>
-                  (Hook this up to a posts API later.)
-                </div>
-              </div>
-              <div className="postTile">
-                <div className="muted" style={{ padding: 12, textAlign: "center" }}>
-                  Ready for grid layout.
-                </div>
-              </div>
+              {profilePosts.map((post) => (
+                <ProfilePostCard
+                  key={post._id}
+                  post={post}
+                  currentUserId={me?._id}
+                  onClick={handleOpenPostDetails}
+                  onDelete={requestDeleteProfilePost}
+                />
+              ))}
             </div>
           </section>
         </>
@@ -289,6 +416,42 @@ export default function Profile() {
       {!editing && status && !photoStatus && status !== "Saved." ? (
         <div className="alert alertError">{status}</div>
       ) : null}
+
+      {showCreatePostModal ? (
+        <div className="modalOverlay" role="dialog" aria-modal="true">
+          <div className="modalCard">
+            <div className="topbar" style={{ marginBottom: 10 }}>
+              <h2 style={{ marginBottom: 0 }}>Create post</h2>
+              <button className="btn" type="button" onClick={closeCreatePostModal}>
+                Close
+              </button>
+            </div>
+            <CreatePostForm
+              onPostCreated={handleProfilePostCreated}
+              placeholder="Post something to your profile..."
+            />
+          </div>
+        </div>
+      ) : null}
+
+      {selectedPost && showPostDetailsModal ? (
+        <PostDetailsModal
+          post={selectedPost}
+          currentUser={me}
+          onClose={handleClosePostDetails}
+          onPostUpdated={handlePostUpdated}
+        />
+      ) : null}
+
+      <ConfirmDialog
+        open={Boolean(postPendingDelete)}
+        title="Delete post"
+        message="Are you sure you want to delete this post?"
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        onCancel={cancelDeleteProfilePost}
+        onConfirm={confirmDeleteProfilePost}
+      />
     </div>
   );
 }
