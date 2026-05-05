@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 
 import { addComment, deleteComment, toggleLike } from "../api/posts";
 import ConfirmDialog from "./ConfirmDialog";
+import RoleBadge from "./RoleBadge";
 import timeAgo from "../utils/timeAgo";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
@@ -143,8 +144,19 @@ export default function PostDetailsModal({ post, currentUser, onClose, onPostUpd
           >
             <img className="postDetailsModal__authorAvatar" src={avatarSrc} alt="" />
             <div>
-              <div style={{ fontWeight: 700, color: "var(--text-h)", fontSize: "1.02rem" }}>
-                {author.name || "Unknown"}
+              <div
+                style={{
+                  fontWeight: 700,
+                  color: "var(--text-h)",
+                  fontSize: "1.02rem",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  flexWrap: "wrap",
+                }}
+              >
+                <span>{author.name || "Unknown"}</span>
+                <RoleBadge role={author?.role} />
               </div>
               <div className="muted" style={{ fontSize: "0.95rem", marginTop: 2 }}>
                 @{author.username || "user"}
@@ -205,7 +217,19 @@ export default function PostDetailsModal({ post, currentUser, onClose, onPostUpd
                 return (
                   <div className="postDetailsModalCommentRow" key={c._id}>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 600, color: "var(--text-h)" }}>{u.name || "User"}</div>
+                      <div
+                        style={{
+                          fontWeight: 600,
+                          color: "var(--text-h)",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <span>{u.name || "User"}</span>
+                        <RoleBadge role={u?.role} />
+                      </div>
                       <div style={{ whiteSpace: "pre-wrap", marginTop: 6, lineHeight: 1.45 }}>{c.text || ""}</div>
                       <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>
                         {commentDate}

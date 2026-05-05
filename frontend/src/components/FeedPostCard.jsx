@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import timeAgo from "../utils/timeAgo";
+import RoleBadge from "./RoleBadge";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
@@ -65,7 +66,13 @@ export default function FeedPostCard({
         >
           <img className="feedPostCard__avatar" src={avatarSrc} alt="" />
           <div className="feedPostCard__names">
-            <div className="feedPostCard__displayName">{author.name || "Someone"}</div>
+            <div
+              className="feedPostCard__displayName"
+              style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}
+            >
+              <span>{author.name || "Someone"}</span>
+              <RoleBadge role={author?.role} />
+            </div>
             <div className="feedPostCard__username">@{author.username || "user"}</div>
             {timeLabel ? <div className="feedPostCard__time">{timeLabel}</div> : null}
           </div>

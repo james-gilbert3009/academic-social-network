@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "../api";
 import { searchUsers } from "../api/users";
+import RoleBadge from "./RoleBadge";
 
 function profileImageSrc(profileImage) {
   if (!profileImage) return null;
@@ -137,7 +138,6 @@ export default function UserSearch() {
                     u?.name || u?.username || "User"
                   )}`;
                 const subtitleParts = [];
-                if (u?.role) subtitleParts.push(u.role);
                 if (u?.faculty) subtitleParts.push(u.faculty);
                 if (u?.program) subtitleParts.push(u.program);
                 const subtitle = subtitleParts.filter(Boolean).join(" • ");
@@ -172,8 +172,18 @@ export default function UserSearch() {
                       }}
                     />
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ fontWeight: 700, color: "var(--text)" }}>
-                        {u?.name || u?.username || "User"}
+                      <div
+                        style={{
+                          fontWeight: 700,
+                          color: "var(--text)",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <span>{u?.name || u?.username || "User"}</span>
+                        <RoleBadge role={u?.role} />
                       </div>
                       <div className="muted" style={{ fontSize: 13 }}>
                         @{u?.username || "user"}

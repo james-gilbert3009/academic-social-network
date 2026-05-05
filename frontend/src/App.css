@@ -211,6 +211,75 @@
   font-size: 14px;
 }
 
+.roleBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: color-mix(in oklab, var(--bg) 88%, var(--social-bg) 12%);
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+  color: var(--text-h);
+}
+
+.roleBadge--student {
+  background: color-mix(in oklab, var(--bg) 90%, #7c8799 10%);
+}
+
+.roleBadge--lecturer {
+  background: color-mix(in oklab, var(--bg) 88%, #2b6cb0 12%);
+}
+
+.roleBadge--professor {
+  background: color-mix(in oklab, var(--bg) 88%, #6b46c1 12%);
+}
+
+.roleBadge--admin {
+  background: color-mix(in oklab, var(--bg) 88%, #b91c1c 12%);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  margin-left: 6px;
+  line-height: 1.2;
+  border: 1px solid color-mix(in oklab, currentColor 22%, transparent);
+  white-space: nowrap;
+}
+
+.badge svg {
+  font-size: 12px;
+  vertical-align: middle;
+  margin-right: 4px;
+}
+
+.badge.student {
+  background-color: #e0f2fe;
+  color: #0369a1;
+}
+
+.badge.lecturer {
+  background-color: #f3e8ff;
+  color: #6b21a8;
+}
+
+.badge.professor {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.badge.admin {
+  background-color: #fee2e2;
+  color: #b91c1c;
+}
+
 .grid2 {
   display: grid;
   grid-template-columns: 1fr 1fr;

@@ -1,3 +1,5 @@
+import RoleBadge from "./RoleBadge";
+
 /**
  * Profile text fields: view/edit header (name, email, role) and main form
  * (bio, faculty, program, skills, interests). Save/cancel API logic lives in the parent.
@@ -23,9 +25,19 @@ export default function ProfileForm({
         <div>
           {!editing || readOnly ? (
             <>
-              <h2 style={{ marginBottom: 6 }}>{user.name}</h2>
+              <h2
+                style={{
+                  marginBottom: 6,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  flexWrap: "wrap",
+                }}
+              >
+                <span>{user.name}</span>
+                <RoleBadge role={user?.role} />
+              </h2>
               <div className="muted">{user.email}</div>
-              <div className="muted"> {user.role}</div>
             </>
           ) : (
             <>
@@ -38,7 +50,7 @@ export default function ProfileForm({
                 />
               </label>
               <div className="muted">{user.email}</div>
-              <div className="muted"> {user.role}</div>
+              <RoleBadge role={user?.role} />
             </>
           )}
         </div>

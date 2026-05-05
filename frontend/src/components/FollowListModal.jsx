@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "../api";
+import RoleBadge from "./RoleBadge";
 
 function profileImageSrc(profileImage) {
   if (!profileImage) return null;
@@ -120,7 +121,7 @@ export default function FollowListModal({
                       <div style={{ fontWeight: 650, color: "var(--text-h)" }}>
                         {u?.name || "User"}
                       </div>
-                      {u?.role ? <span className="chip">{u.role}</span> : null}
+                      <RoleBadge role={u?.role} />
                     </div>
                     <div className="muted" style={{ marginTop: 2 }}>
                       @{u?.username || "unknown"}

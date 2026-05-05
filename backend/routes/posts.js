@@ -70,7 +70,7 @@ function getPopulatedPostQuery() {
   return Post.find()
     .sort({ createdAt: -1 })
     .populate("author", "name username profileImage role")
-    .populate("comments.user", "name username profileImage");
+    .populate("comments.user", "name username profileImage role");
 }
 
 // POST /api/posts
@@ -113,7 +113,7 @@ router.post("/", requireAuth, uploadSinglePostImage, async (req, res) => {
 
     const populated = await Post.findById(post._id)
       .populate("author", "name username profileImage role")
-      .populate("comments.user", "name username profileImage");
+      .populate("comments.user", "name username profileImage role");
 
     return res.status(201).json({ post: populated });
   } catch (error) {
@@ -141,7 +141,7 @@ router.get("/user/:userId", requireAuth, async (req, res) => {
     const posts = await Post.find({ author: req.params.userId })
       .sort({ createdAt: -1 })
       .populate("author", "name username profileImage role")
-      .populate("comments.user", "name username profileImage");
+      .populate("comments.user", "name username profileImage role");
 
     return res.json({ posts });
   } catch (error) {
@@ -173,7 +173,7 @@ router.put("/:id", requireAuth, async (req, res) => {
 
     const populated = await Post.findById(post._id)
       .populate("author", "name username profileImage role")
-      .populate("comments.user", "name username profileImage");
+      .populate("comments.user", "name username profileImage role");
 
     return res.json({ post: populated });
   } catch (error) {
@@ -267,7 +267,7 @@ router.put("/:id/like", requireAuth, async (req, res) => {
 
     const populated = await Post.findById(post._id)
       .populate("author", "name username profileImage role")
-      .populate("comments.user", "name username profileImage");
+      .populate("comments.user", "name username profileImage role");
 
     return res.json({ post: populated });
   } catch (error) {
@@ -305,7 +305,7 @@ router.post("/:id/comments", requireAuth, async (req, res) => {
 
     const populated = await Post.findById(post._id)
       .populate("author", "name username profileImage role")
-      .populate("comments.user", "name username profileImage");
+      .populate("comments.user", "name username profileImage role");
 
     return res.status(201).json({ post: populated });
   } catch (error) {
@@ -354,7 +354,7 @@ router.delete("/:postId/comments/:commentId", requireAuth, async (req, res) => {
 
     const populated = await Post.findById(post._id)
       .populate("author", "name username profileImage role")
-      .populate("comments.user", "name username profileImage");
+      .populate("comments.user", "name username profileImage role");
 
     return res.json({ post: populated });
   } catch (error) {
