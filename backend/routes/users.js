@@ -1,12 +1,30 @@
 import express from "express";
 import multer from "multer";
+import fs from "fs";
 import path from "path";
 import User from "../models/User.js";
+import Post from "../models/Post.js";
 import Notification from "../models/Notification.js";
 import { requireAuth } from "../middleware/auth.js";
 import computeIsProfileComplete from "../utils/isProfileComplete.js";
 
 const router = express.Router();
+
+/** Best-effort delete for `/uploads/...` paths stored on disk next to process.cwd(). */
+const deleteUploadedFile = async (fileUrl) => {
+  try {
+    if (!fileUrl || typeof fileUrl !== "string" || !fileUrl.startsWith("/uploads/")) return;
+
+    const filename = path.basename(fileUrl);
+    const filePath = path.join(process.cwd(), "uploads", filename);
+
+    if (fs.existsSync(filePath)) {
+      await fs.promises.unlink(filePath);
+    }
+  } catch (error) {
+    console.error("File delete error:", error?.message || error);
+  }
+};
 
 const SAFE_USER_FIELDS = "name username profileImage role faculty program";
 
@@ -63,6 +81,59 @@ router.get("/me", requireAuth, async (req, res) => {
     return res.json({ user });
   } catch (error) {
     return res.status(500).json({ message: "Failed to load user", error: error.message });
+  }
+});
+
+// DELETE /api/users/me — permanently delete the logged-in user's account only
+router.delete("/me", requireAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const user = await User.findById(userId).select("profileImage");
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    await deleteUploadedFile(user.profileImage);
+
+    const userPosts = await Post.find({ author: userId }).select("image").lean();
+    const postIds = userPosts.map((p) => p._id);
+
+    for (const p of userPosts) {
+      await deleteUploadedFile(p.image);
+    }
+
+    await Notification.deleteMany({
+      $or: [{ sender: userId }, { recipient: userId }],
+    });
+
+    if (postIds.length > 0) {
+      try {
+        await Notification.deleteMany({ post: { $in: postIds } });
+      } catch (notifErr) {
+        console.error(
+          "Account deletion: failed to remove notifications for posts:",
+          notifErr?.message || notifErr
+        );
+      }
+    }
+
+    await Post.deleteMany({ author: userId });
+
+    await Post.updateMany({ "comments.user": userId }, { $pull: { comments: { user: userId } } });
+
+    await Post.updateMany({ likes: userId }, { $pull: { likes: userId } });
+
+    await User.updateMany({ followers: userId }, { $pull: { followers: userId } });
+    await User.updateMany({ following: userId }, { $pull: { following: userId } });
+
+    await User.findByIdAndDelete(userId);
+
+    return res.json({ message: "Account deleted successfully" });
+  } catch (err) {
+    console.error("DELETE /api/users/me error:", err);
+    return res.status(500).json({
+      message: "Failed to delete account",
+      error: err.message,
+    });
   }
 });
 

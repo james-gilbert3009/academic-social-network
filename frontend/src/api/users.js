@@ -27,3 +27,8 @@ export function getConnections(userId) {
   return api.get(`/api/users/${userId}/connections`);
 }
 
+/** DELETE permanently deletes the logged-in user's account. */
+export function deleteMyAccount() {
+  return api.delete("/api/users/me");
+}
+

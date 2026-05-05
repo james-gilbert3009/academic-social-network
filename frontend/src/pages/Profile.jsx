@@ -3,7 +3,13 @@ import { useNavigate, useParams } from "react-router-dom";
 import { API_BASE_URL, setAuthToken } from "../api";
 import { getProfile, getProfileById, updateProfile } from "../api/profile";
 import { deletePost, getPostsByUser } from "../api/posts";
-import { getConnections, getFollowers, getFollowing, toggleFollow } from "../api/users";
+import {
+  deleteMyAccount,
+  getConnections,
+  getFollowers,
+  getFollowing,
+  toggleFollow,
+} from "../api/users";
 import ConfirmDialog from "../components/ConfirmDialog";
 import CreatePostForm from "../components/CreatePostForm";
 import NotificationsDropdown from "../components/NotificationsDropdown.jsx";
@@ -63,6 +69,7 @@ export default function Profile() {
   const [selectedPost, setSelectedPost] = useState(null);
   const [showPostDetailsModal, setShowPostDetailsModal] = useState(false);
   const [postPendingDelete, setPostPendingDelete] = useState(null);
+  const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
 
   const [form, setForm] = useState({
     name: "",
@@ -418,6 +425,28 @@ export default function Profile() {
     navigate("/login", { replace: true });
   }
 
+  function openDeleteAccountModal() {
+    setStatus("");
+    setShowDeleteAccountModal(true);
+  }
+
+  function closeDeleteAccountModal() {
+    setShowDeleteAccountModal(false);
+  }
+
+  async function confirmDeleteAccount() {
+    setStatus("");
+    try {
+      await deleteMyAccount();
+      localStorage.removeItem("token");
+      setAuthToken(null);
+      navigate("/login", { replace: true });
+    } catch (err) {
+      const msg = err?.response?.data?.message || err?.message || "Failed to delete account";
+      setStatus(msg);
+    }
+  }
+
   async function uploadPendingProfileImage(file) {
     if (readOnlyProfile) return false;
     if (!file || !user) return false;
@@ -672,6 +701,14 @@ export default function Profile() {
                 readOnly={readOnlyProfile}
               />
             </div>
+
+            {isOwnProfile ? (
+              <div style={{ marginTop: 20 }}>
+                <button className="btn btnDanger" type="button" onClick={openDeleteAccountModal}>
+                  Delete Account
+                </button>
+              </div>
+            ) : null}
           </section>
 
           <section className="card">
@@ -752,6 +789,16 @@ export default function Profile() {
         cancelLabel="Cancel"
         onCancel={cancelDeleteProfilePost}
         onConfirm={confirmDeleteProfilePost}
+      />
+
+      <ConfirmDialog
+        open={showDeleteAccountModal}
+        title="Delete account"
+        message="Are you sure you want to delete your account? This action cannot be undone."
+        confirmLabel="Delete Account"
+        cancelLabel="Cancel"
+        onCancel={closeDeleteAccountModal}
+        onConfirm={confirmDeleteAccount}
       />
 
       <FollowListModal
