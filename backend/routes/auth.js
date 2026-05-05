@@ -30,12 +30,24 @@ router.post("/register", async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    const allowedRoles = ["student", "lecturer", "professor"];
+    const requestedRole = role ? String(role).toLowerCase().trim() : "";
+    let registrationRole = "student";
+    if (requestedRole) {
+      if (!allowedRoles.includes(requestedRole)) {
+        return res.status(400).json({
+          message: "Invalid role. Choose student, lecturer, or professor.",
+        });
+      }
+      registrationRole = requestedRole;
+    }
+
     const user = await User.create({
       name,
       username: normalizedUsername,
       email: normalizedEmail,
       password: hashedPassword,
-      role,
+      role: registrationRole,
       birthdate: birthdate ? new Date(birthdate) : null,
     });
 

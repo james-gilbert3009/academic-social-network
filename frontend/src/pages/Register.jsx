@@ -93,6 +93,7 @@ export default function Register() {
           >
             <option value="student">Student</option>
             <option value="lecturer">Lecturer</option>
+            <option value="professor">Professor</option>
           </select>
         </label>
 
