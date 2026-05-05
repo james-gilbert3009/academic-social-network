@@ -6,6 +6,7 @@ import { deletePost, getPostsByUser } from "../api/posts";
 import { getFollowers, getFollowing, getMutualUsers, toggleFollow } from "../api/users";
 import ConfirmDialog from "../components/ConfirmDialog";
 import CreatePostForm from "../components/CreatePostForm";
+import NotificationsDropdown from "../components/NotificationsDropdown.jsx";
 import PostDetailsModal from "../components/PostDetailsModal";
 import ProfilePostCard from "../components/ProfilePostCard";
 import ProfileAvatar from "../components/ProfileAvatar";
@@ -261,6 +262,8 @@ export default function Profile() {
               : prev.followingCount ?? nextFollowing.length,
         };
       });
+
+      window.dispatchEvent(new Event("notifications:refresh"));
     } catch (err) {
       const msg = err?.response?.data?.message || err?.message || "Failed to toggle follow";
       setStatus(msg);
@@ -344,6 +347,8 @@ export default function Profile() {
       if (readOnlyProfile && String(routeUserId || "") === String(userId)) {
         setIsFollowing(Boolean(nextIsFollowing));
       }
+
+      window.dispatchEvent(new Event("notifications:refresh"));
     } catch (err) {
       const msg = err?.response?.data?.message || err?.message || "Failed to toggle follow";
       setStatus(msg);
@@ -470,6 +475,7 @@ export default function Profile() {
       <div className="topbar">
         <h1>{readOnlyProfile ? `${user?.name || "Profile"}` : "My Profile"}</h1>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {me ? <NotificationsDropdown /> : null}
           <button className="btn" type="button" onClick={() => navigate("/feed")}>
             Back to feed
           </button>

@@ -2,6 +2,7 @@ import express from "express";
 import multer from "multer";
 import path from "path";
 import User from "../models/User.js";
+import Notification from "../models/Notification.js";
 import { requireAuth } from "../middleware/auth.js";
 import computeIsProfileComplete from "../utils/isProfileComplete.js";
 
@@ -189,6 +190,7 @@ router.put("/:id/follow", requireAuth, async (req, res) => {
     const alreadyFollowing = (currentUser.following || []).some(
       (id) => String(id) === targetId
     );
+    const wasFollower = (targetUser.following || []).some((id) => String(id) === currentUserId);
 
     if (alreadyFollowing) {
       currentUser.following = (currentUser.following || []).filter(
@@ -207,6 +209,61 @@ router.put("/:id/follow", requireAuth, async (req, res) => {
     const isFollowing = !alreadyFollowing;
     const isFollower = (targetUser.following || []).some((id) => String(id) === currentUserId);
     const isFriend = Boolean(isFollowing && isFollower);
+
+    // Notification cleanup on unfollow (undo).
+    if (!isFollowing) {
+      try {
+        await Notification.deleteMany({
+          sender: currentUser._id,
+          recipient: targetUser._id,
+          type: { $in: ["follow", "follow_back", "friend"] },
+        });
+
+        // If they were friends before, also remove the counterpart friend notification.
+        await Notification.deleteMany({
+          sender: targetUser._id,
+          recipient: currentUser._id,
+          type: "friend",
+        });
+      } catch (notifErr) {
+        // Intentionally ignore cleanup failures for thesis demo.
+      }
+    }
+
+    // Notifications: only on follow (not unfollow), never notify yourself.
+    if (isFollowing && targetId !== currentUserId) {
+      try {
+        if (!wasFollower) {
+          await Notification.create({
+            recipient: targetUser._id,
+            sender: currentUser._id,
+            type: "follow",
+          });
+        } else {
+          // Follow-back happened and mutual following exists -> friend.
+          await Notification.create({
+            recipient: targetUser._id,
+            sender: currentUser._id,
+            type: "follow_back",
+          });
+
+          await Notification.insertMany([
+            {
+              recipient: targetUser._id,
+              sender: currentUser._id,
+              type: "friend",
+            },
+            {
+              recipient: currentUser._id,
+              sender: targetUser._id,
+              type: "friend",
+            },
+          ]);
+        }
+      } catch (notifErr) {
+        // Intentionally ignore notification failures for thesis demo.
+      }
+    }
 
     return res.json({
       message: isFollowing ? "Followed" : "Unfollowed",

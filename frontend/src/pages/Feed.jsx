@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import { setAuthToken } from "../api";
 import { getProfile } from "../api/profile";
@@ -7,10 +7,12 @@ import { deletePost, getPosts, toggleLike, updatePost } from "../api/posts";
 import ConfirmDialog from "../components/ConfirmDialog";
 import CreatePostForm from "../components/CreatePostForm";
 import FeedPostCard from "../components/FeedPostCard";
+import NotificationsDropdown from "../components/NotificationsDropdown.jsx";
 import PostDetailsModal from "../components/PostDetailsModal";
 
 export default function Feed() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [me, setMe] = useState(null);
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -49,6 +51,21 @@ export default function Feed() {
       cancelled = true;
     };
   }, []);
+
+  // If we navigated here from a notification, open that post immediately.
+  useEffect(() => {
+    const openPostId = location.state?.openPostId;
+    if (!openPostId) return;
+    if (loading) return;
+
+    const match = (posts || []).find((p) => String(p?._id) === String(openPostId));
+    if (match) {
+      handleOpenPostDetails(match);
+      // Clear the navigation state so it won't re-open on re-render,
+      // but allow future clicks on the same notification to work again.
+      window.history.replaceState({}, document.title, location.pathname);
+    }
+  }, [location.state, loading, posts, location.pathname]);
 
   function logout() {
     localStorage.removeItem("token");
@@ -164,6 +181,7 @@ export default function Feed() {
       <div className="topbar">
         <h1>Feed Page</h1>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {me ? <NotificationsDropdown /> : null}
           <button className="btn btnPrimary" type="button" onClick={openCreatePostModal}>
             Create
           </button>

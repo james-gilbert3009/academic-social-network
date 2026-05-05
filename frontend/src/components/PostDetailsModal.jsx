@@ -69,6 +69,7 @@ export default function PostDetailsModal({ post, currentUser, onClose, onPostUpd
     try {
       const res = await toggleLike(post._id);
       onPostUpdated?.(res.data.post);
+      window.dispatchEvent(new Event("notifications:refresh"));
     } catch (err) {
       setError(err?.response?.data?.message || err?.message || "Could not update like");
     } finally {
@@ -101,6 +102,7 @@ export default function PostDetailsModal({ post, currentUser, onClose, onPostUpd
     try {
       const res = await deleteComment(post._id, commentId);
       onPostUpdated?.(res.data.post);
+      window.dispatchEvent(new Event("notifications:refresh"));
     } catch (err) {
       setError(err?.response?.data?.message || err?.message || "Could not delete comment");
     } finally {

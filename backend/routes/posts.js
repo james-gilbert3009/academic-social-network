@@ -2,6 +2,8 @@ import express from "express";
 import multer from "multer";
 
 import Post from "../models/Post.js";
+import User from "../models/User.js";
+import Notification from "../models/Notification.js";
 import { requireAuth } from "../middleware/auth.js";
 
 const router = express.Router();
@@ -67,6 +69,28 @@ router.post("/", requireAuth, uploadSinglePostImage, async (req, res) => {
       content,
       image: hasImage ? `/uploads/${req.file.filename}` : "",
     });
+
+    // Notifications: when a user creates a post, notify their followers.
+    try {
+      const author = await User.findById(req.user.id).select("followers");
+      const followerIds = (author?.followers || []).map((id) => String(id));
+      const uniqueFollowerIds = Array.from(new Set(followerIds)).filter(
+        (id) => id && id !== String(req.user.id)
+      );
+
+      if (uniqueFollowerIds.length) {
+        await Notification.insertMany(
+          uniqueFollowerIds.map((recipientId) => ({
+            recipient: recipientId,
+            sender: req.user.id,
+            type: "post",
+            post: post._id,
+          }))
+        );
+      }
+    } catch (notifErr) {
+      // Intentionally ignore notification failures for thesis demo.
+    }
 
     const populated = await Post.findById(post._id)
       .populate("author", "name username profileImage role")
@@ -175,6 +199,43 @@ router.put("/:id/like", requireAuth, async (req, res) => {
 
     await post.save();
 
+    // Notification cleanup on unlike (undo).
+    if (alreadyLiked && String(post.author) !== userId) {
+      try {
+        await Notification.deleteMany({
+          recipient: post.author,
+          sender: req.user.id,
+          type: "like",
+          post: post._id,
+        });
+      } catch (notifErr) {
+        // Intentionally ignore cleanup failures for thesis demo.
+      }
+    }
+
+    // Notifications: only on like (not unlike), never notify yourself.
+    if (!alreadyLiked && String(post.author) !== userId) {
+      try {
+        const existing = await Notification.findOne({
+          recipient: post.author,
+          sender: req.user.id,
+          type: "like",
+          post: post._id,
+        }).select("_id");
+
+        if (!existing) {
+          await Notification.create({
+            recipient: post.author,
+            sender: req.user.id,
+            type: "like",
+            post: post._id,
+          });
+        }
+      } catch (notifErr) {
+        // Intentionally ignore notification failures for thesis demo.
+      }
+    }
+
     const populated = await Post.findById(post._id)
       .populate("author", "name username profileImage role")
       .populate("comments.user", "name username profileImage");
@@ -197,6 +258,21 @@ router.post("/:id/comments", requireAuth, async (req, res) => {
 
     post.comments.push({ user: req.user.id, text });
     await post.save();
+
+    // Notifications: on comment, notify post author, never notify yourself.
+    if (String(post.author) !== String(req.user.id)) {
+      try {
+        await Notification.create({
+          recipient: post.author,
+          sender: req.user.id,
+          type: "comment",
+          post: post._id,
+          commentText: text,
+        });
+      } catch (notifErr) {
+        // Intentionally ignore notification failures for thesis demo.
+      }
+    }
 
     const populated = await Post.findById(post._id)
       .populate("author", "name username profileImage role")
@@ -230,8 +306,22 @@ router.delete("/:postId/comments/:commentId", requireAuth, async (req, res) => {
       return res.status(403).json({ message: "Not allowed to delete this comment" });
     }
 
+    const commentTextToDelete = String(comment.text || "");
     comment.deleteOne();
     await post.save();
+
+    // Notification cleanup on comment delete (undo).
+    try {
+      await Notification.deleteMany({
+        recipient: post.author,
+        sender: commentUserId,
+        type: "comment",
+        post: post._id,
+        commentText: commentTextToDelete,
+      });
+    } catch (notifErr) {
+      // Intentionally ignore cleanup failures for thesis demo.
+    }
 
     const populated = await Post.findById(post._id)
       .populate("author", "name username profileImage role")

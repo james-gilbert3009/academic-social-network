@@ -16,6 +16,156 @@
   gap: 12px;
 }
 
+/* Notifications dropdown (responsive) */
+.notif {
+  position: relative;
+}
+
+.notif__btn {
+  position: relative;
+}
+
+.notif__badge {
+  margin-left: 8px;
+  display: inline-flex;
+  min-width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: white;
+  background: var(--primary);
+  padding: 0 7px;
+}
+
+.notif__menu {
+  position: absolute;
+  right: 0;
+  margin-top: 8px;
+  width: 360px;
+  max-width: min(90vw, 360px);
+  /* Use same surface as modalCard (solid, not transparent) */
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+  z-index: 50;
+}
+
+.notif__menuActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.notif__list {
+  max-height: 420px;
+  overflow: auto;
+}
+
+.notif__item {
+  width: 100%;
+  text-align: left;
+  padding: 12px 12px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  color: var(--text);
+}
+
+.notif__item:hover {
+  background: color-mix(in oklab, var(--bg) 88%, var(--social-bg) 12%);
+}
+
+.notif__item--unread {
+  background: color-mix(in oklab, var(--accent-bg) 70%, transparent);
+}
+
+.notif__itemRow {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.notif__avatarWrap {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: color-mix(in oklab, var(--bg) 88%, var(--social-bg) 12%);
+  overflow: hidden;
+  flex: 0 0 auto;
+}
+
+.notif__avatar {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.notif__content {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.notif__headline {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.notif__itemText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notif__itemTime {
+  font-size: 12px;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 520px) {
+  .notif__menu {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    width: auto;
+    max-width: none;
+    top: 72px;
+    margin-top: 0;
+  }
+
+  .notif__list {
+    max-height: min(60vh, 520px);
+  }
+
+  .notif__itemText {
+    white-space: normal;
+  }
+}
+
 .card {
   border: 1px solid var(--border);
   border-radius: 14px;
