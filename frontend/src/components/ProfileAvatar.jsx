@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { API_BASE_URL } from "../api";
 
 const overlayStyle = {
   position: "fixed",
@@ -30,20 +31,53 @@ const menuPanelStyle = {
  * Upload/remove API calls stay in the parent; pass them as props.
  */
 export default function ProfileAvatar({
-  avatarDisplaySrc,
-  viewImageSrc,
-  hasProfilePicture,
-  loading,
-  profilePhotoBusy,
+  // New props (preferred)
+  image,
+  isOwnProfile,
+  onUpload,
+  onRemove,
+
+  // Backward-compatible props (kept to avoid breaking older callers)
+  avatarDisplaySrc: legacyAvatarDisplaySrc,
+  viewImageSrc: legacyViewImageSrc,
+  hasProfilePicture: legacyHasProfilePicture,
+  loading = false,
+  profilePhotoBusy = false,
   onUploadPending,
   onRemoveProfilePicture,
-  readOnly = false,
+  readOnly,
 }) {
   const fileInputRef = useRef(null);
   const [avatarMenuOpen, setAvatarMenuOpen] = useState(false);
   const [viewImageOpen, setViewImageOpen] = useState(false);
   const [pendingImage, setPendingImage] = useState(null);
   const [pendingPreviewUrl, setPendingPreviewUrl] = useState("");
+
+  const effectiveIsOwnProfile =
+    typeof isOwnProfile === "boolean" ? isOwnProfile : !Boolean(readOnly);
+
+  const effectiveOnUpload = onUpload || onUploadPending;
+  const effectiveOnRemove = onRemove || onRemoveProfilePicture;
+
+  const normalizedImage = typeof image === "string" ? image : "";
+  const computedHasProfilePicture =
+    typeof legacyHasProfilePicture === "boolean"
+      ? legacyHasProfilePicture
+      : Boolean(normalizedImage);
+
+  const computedViewImageSrc =
+    legacyViewImageSrc ??
+    (normalizedImage
+      ? normalizedImage.startsWith("/uploads")
+        ? `${API_BASE_URL}${normalizedImage}`
+        : normalizedImage
+      : "");
+
+  const computedAvatarDisplaySrc =
+    legacyAvatarDisplaySrc ??
+    (computedViewImageSrc || "https://api.dicebear.com/8.x/initials/svg?seed=User");
+
+  const computedReadOnly = !effectiveIsOwnProfile;
 
   useEffect(() => {
     return () => {
@@ -52,8 +86,8 @@ export default function ProfileAvatar({
   }, [pendingPreviewUrl]);
 
   useEffect(() => {
-    if (!hasProfilePicture) setViewImageOpen(false);
-  }, [hasProfilePicture]);
+    if (!computedHasProfilePicture) setViewImageOpen(false);
+  }, [computedHasProfilePicture]);
 
   function closeAvatarMenu() {
     setAvatarMenuOpen(false);
@@ -91,7 +125,8 @@ export default function ProfileAvatar({
 
   async function handleUploadClick() {
     if (!pendingImage) return;
-    const ok = await onUploadPending(pendingImage);
+    if (!effectiveOnUpload) return;
+    const ok = await effectiveOnUpload(pendingImage);
     if (ok) closePendingImageModal();
   }
 
@@ -107,8 +142,27 @@ export default function ProfileAvatar({
       />
 
       <div style={{ position: "relative", alignSelf: "flex-start" }}>
-        {readOnly ? (
-          <img className="avatar" src={avatarDisplaySrc} alt="" />
+        {computedReadOnly ? (
+          computedHasProfilePicture ? (
+            <button
+              type="button"
+              onClick={openViewProfilePicture}
+              aria-label="View profile picture"
+              style={{
+                padding: 0,
+                margin: 0,
+                border: "none",
+                background: "transparent",
+                cursor: "pointer",
+                borderRadius: "50%",
+                display: "block",
+              }}
+            >
+              <img className="avatar" src={computedAvatarDisplaySrc} alt="" />
+            </button>
+          ) : (
+            <img className="avatar" src={computedAvatarDisplaySrc} alt="" />
+          )
         ) : (
           <button
             type="button"
@@ -127,11 +181,11 @@ export default function ProfileAvatar({
               display: "block",
             }}
           >
-            <img className="avatar" src={avatarDisplaySrc} alt="" />
+            <img className="avatar" src={computedAvatarDisplaySrc} alt="" />
           </button>
         )}
 
-        {!readOnly && avatarMenuOpen ? (
+        {!computedReadOnly && avatarMenuOpen ? (
           <>
             <div
               role="presentation"
@@ -143,7 +197,7 @@ export default function ProfileAvatar({
               onClick={closeAvatarMenu}
             />
             <div style={menuPanelStyle} role="menu">
-              {hasProfilePicture ? (
+              {computedHasProfilePicture ? (
                 <>
                   <button
                     type="button"
@@ -181,9 +235,9 @@ export default function ProfileAvatar({
                     role="menuitem"
                     onClick={() => {
                       closeAvatarMenu();
-                      onRemoveProfilePicture();
+                      effectiveOnRemove?.();
                     }}
-                    disabled={profilePhotoBusy}
+                    disabled={profilePhotoBusy || !effectiveOnRemove}
                     style={{
                       width: "100%",
                       justifyContent: "flex-start",
@@ -201,7 +255,7 @@ export default function ProfileAvatar({
                   className="btn btnPrimary"
                   role="menuitem"
                   onClick={openFilePickerForAvatar}
-                  disabled={profilePhotoBusy}
+                  disabled={profilePhotoBusy || !effectiveOnUpload}
                   style={{
                     width: "100%",
                     justifyContent: "flex-start",
@@ -217,7 +271,7 @@ export default function ProfileAvatar({
         ) : null}
       </div>
 
-      {viewImageOpen && hasProfilePicture && viewImageSrc ? (
+      {viewImageOpen && computedHasProfilePicture && computedViewImageSrc ? (
         <div
           style={overlayStyle}
           role="dialog"
@@ -242,9 +296,17 @@ export default function ProfileAvatar({
               </button>
             </div>
             <img
-              src={viewImageSrc}
-              alt="Your profile"
-              style={{ width: "100%", height: "auto", display: "block", borderRadius: 8 }}
+              src={computedViewImageSrc}
+              alt="Profile"
+              style={{
+                width: "100%",
+                height: "auto",
+                maxHeight: "70vh",
+                objectFit: "contain",
+                display: "block",
+                borderRadius: 8,
+                background: "var(--bg)",
+              }}
             />
           </div>
         </div>
