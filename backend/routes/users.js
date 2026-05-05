@@ -7,6 +7,8 @@ import computeIsProfileComplete from "../utils/isProfileComplete.js";
 
 const router = express.Router();
 
+const SAFE_USER_FIELDS = "name username profileImage role faculty program";
+
 function normalizeCommaList(value) {
   return String(value || "")
     .split(",")
@@ -59,6 +61,74 @@ router.get("/me", requireAuth, async (req, res) => {
   }
 });
 
+// GET /api/users/:id/followers
+// Return users who follow :id
+router.get("/:id/followers", requireAuth, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).select("followers");
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const populated = await User.find({ _id: { $in: user.followers || [] } })
+      .select(SAFE_USER_FIELDS)
+      .sort({ name: 1 });
+
+    return res.json({ users: populated });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to load followers", error: error.message });
+  }
+});
+
+// GET /api/users/:id/following
+// Return users that :id follows
+router.get("/:id/following", requireAuth, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).select("following");
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const populated = await User.find({ _id: { $in: user.following || [] } })
+      .select(SAFE_USER_FIELDS)
+      .sort({ name: 1 });
+
+    return res.json({ users: populated });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to load following", error: error.message });
+  }
+});
+
+// GET /api/users/:id/mutual
+// Simple mutual following: intersection between logged-in user's following and :id's following.
+router.get("/:id/mutual", requireAuth, async (req, res) => {
+  try {
+    const targetId = String(req.params.id || "");
+    const currentUserId = String(req.user.id || "");
+    if (!targetId) return res.status(400).json({ message: "Missing target user id" });
+    if (targetId === currentUserId) return res.json({ users: [] });
+
+    const [me, target] = await Promise.all([
+      User.findById(currentUserId).select("following"),
+      User.findById(targetId).select("following"),
+    ]);
+
+    if (!me) return res.status(404).json({ message: "Current user not found" });
+    if (!target) return res.status(404).json({ message: "User not found" });
+
+    const meFollowing = (me.following || []).map((id) => String(id));
+    const targetFollowing = new Set((target.following || []).map((id) => String(id)));
+
+    const mutualIds = meFollowing.filter((id) => targetFollowing.has(id));
+
+    if (!mutualIds.length) return res.json({ users: [] });
+
+    const users = await User.find({ _id: { $in: mutualIds } })
+      .select(SAFE_USER_FIELDS)
+      .sort({ name: 1 });
+
+    return res.json({ users });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to load mutual users", error: error.message });
+  }
+});
+
 // Profile setup / update (multipart/form-data)
 router.put("/me", requireAuth, upload.single("profileImage"), async (req, res) => {
   try {
@@ -93,6 +163,61 @@ router.put("/me", requireAuth, upload.single("profileImage"), async (req, res) =
   } catch (error) {
     const msg = error?.message || "Failed to update profile";
     return res.status(500).json({ message: msg, error: msg });
+  }
+});
+
+// PUT /api/users/:id/follow
+// Toggle follow/unfollow another user.
+router.put("/:id/follow", requireAuth, async (req, res) => {
+  try {
+    const targetId = String(req.params.id || "");
+    const currentUserId = String(req.user.id || "");
+
+    if (!targetId) return res.status(400).json({ message: "Missing target user id" });
+    if (targetId === currentUserId) {
+      return res.status(400).json({ message: "You cannot follow yourself" });
+    }
+
+    const [currentUser, targetUser] = await Promise.all([
+      User.findById(currentUserId),
+      User.findById(targetId),
+    ]);
+
+    if (!currentUser) return res.status(404).json({ message: "Current user not found" });
+    if (!targetUser) return res.status(404).json({ message: "User not found" });
+
+    const alreadyFollowing = (currentUser.following || []).some(
+      (id) => String(id) === targetId
+    );
+
+    if (alreadyFollowing) {
+      currentUser.following = (currentUser.following || []).filter(
+        (id) => String(id) !== targetId
+      );
+      targetUser.followers = (targetUser.followers || []).filter(
+        (id) => String(id) !== currentUserId
+      );
+    } else {
+      currentUser.following = [...(currentUser.following || []), targetUser._id];
+      targetUser.followers = [...(targetUser.followers || []), currentUser._id];
+    }
+
+    await Promise.all([currentUser.save(), targetUser.save()]);
+
+    const isFollowing = !alreadyFollowing;
+    const isFollower = (targetUser.following || []).some((id) => String(id) === currentUserId);
+    const isFriend = Boolean(isFollowing && isFollower);
+
+    return res.json({
+      message: isFollowing ? "Followed" : "Unfollowed",
+      isFollowing,
+      isFollower,
+      isFriend,
+      followersCount: (targetUser.followers || []).length,
+      followingCount: (currentUser.following || []).length,
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to toggle follow", error: error.message });
   }
 });
 

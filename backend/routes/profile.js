@@ -47,7 +47,17 @@ router.get("/me", requireAuth, async (req, res) => {
       );
     }
 
-    return res.json({ user });
+    const safeUser = user.toObject();
+    safeUser.followersCount = Array.isArray(safeUser.followers) ? safeUser.followers.length : 0;
+    safeUser.followingCount = Array.isArray(safeUser.following) ? safeUser.following.length : 0;
+    if (Array.isArray(safeUser.followers) && Array.isArray(safeUser.following)) {
+      const followersSet = new Set(safeUser.followers.map((id) => String(id)));
+      safeUser.friendsCount = safeUser.following.filter((id) => followersSet.has(String(id))).length;
+    } else {
+      safeUser.friendsCount = 0;
+    }
+
+    return res.json({ user: safeUser });
   } catch (error) {
     return res.status(500).json({
       message: "Failed to load profile",
@@ -60,9 +70,36 @@ router.get("/me", requireAuth, async (req, res) => {
 // Public-ish profile view for authenticated users (no password).
 router.get("/:userId", requireAuth, async (req, res) => {
   try {
-    const user = await User.findById(req.params.userId).select("-password");
+    const viewingUserId = String(req.params.userId || "");
+    const currentUserId = String(req.user.id || "");
+
+    const [user, me] = await Promise.all([
+      User.findById(viewingUserId).select("-password"),
+      User.findById(currentUserId).select("followers following"),
+    ]);
+
     if (!user) return res.status(404).json({ message: "User not found" });
-    return res.json({ user });
+    if (!me) return res.status(404).json({ message: "Current user not found" });
+
+    const safeUser = user.toObject();
+    safeUser.followersCount = Array.isArray(safeUser.followers) ? safeUser.followers.length : 0;
+    safeUser.followingCount = Array.isArray(safeUser.following) ? safeUser.following.length : 0;
+
+    const meFollowing = Array.isArray(me.following) ? me.following.map((id) => String(id)) : [];
+    const meFollowers = Array.isArray(me.followers) ? me.followers.map((id) => String(id)) : [];
+
+    safeUser.isFollowing = meFollowing.includes(viewingUserId);
+    safeUser.isFollower = meFollowers.includes(viewingUserId);
+    safeUser.isFriend = Boolean(safeUser.isFollowing && safeUser.isFollower);
+
+    if (Array.isArray(safeUser.followers) && Array.isArray(safeUser.following)) {
+      const followersSet = new Set(safeUser.followers.map((id) => String(id)));
+      safeUser.friendsCount = safeUser.following.filter((id) => followersSet.has(String(id))).length;
+    } else {
+      safeUser.friendsCount = 0;
+    }
+
+    return res.json({ user: safeUser });
   } catch (error) {
     return res.status(500).json({
       message: "Failed to load profile",

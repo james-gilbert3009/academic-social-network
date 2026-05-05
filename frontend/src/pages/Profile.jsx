@@ -3,12 +3,14 @@ import { useNavigate, useParams } from "react-router-dom";
 import { API_BASE_URL, setAuthToken } from "../api";
 import { getProfile, getProfileById, updateProfile } from "../api/profile";
 import { deletePost, getPostsByUser } from "../api/posts";
+import { getFollowers, getFollowing, getMutualUsers, toggleFollow } from "../api/users";
 import ConfirmDialog from "../components/ConfirmDialog";
 import CreatePostForm from "../components/CreatePostForm";
 import PostDetailsModal from "../components/PostDetailsModal";
 import ProfilePostCard from "../components/ProfilePostCard";
 import ProfileAvatar from "../components/ProfileAvatar";
 import ProfileForm from "../components/ProfileForm";
+import FollowListModal from "../components/FollowListModal";
 
 function toCommaList(arr) {
   if (!Array.isArray(arr)) return "";
@@ -40,6 +42,15 @@ export default function Profile() {
   const [editing, setEditing] = useState(false);
   const [me, setMe] = useState(null);
   const [user, setUser] = useState(null);
+  const [followBusy, setFollowBusy] = useState(false);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [isFollower, setIsFollower] = useState(false);
+  const [isFriend, setIsFriend] = useState(false);
+  const [followListOpen, setFollowListOpen] = useState(false);
+  const [followListTitle, setFollowListTitle] = useState("");
+  const [followListUsers, setFollowListUsers] = useState([]);
+  const [followListLoading, setFollowListLoading] = useState(false);
+  const [followListBusyIds, setFollowListBusyIds] = useState([]);
   const [profilePhotoBusy, setProfilePhotoBusy] = useState(false);
   const [profilePosts, setProfilePosts] = useState([]);
   const [postsLoading, setPostsLoading] = useState(false);
@@ -86,6 +97,20 @@ export default function Profile() {
       const u = profileRes.data.user;
 
       setUser(u);
+      if (viewingOther) {
+        const targetId = String(routeUserId);
+        const following = Array.isArray(meUser?.following) ? meUser.following : [];
+        const followers = Array.isArray(meUser?.followers) ? meUser.followers : [];
+        const nextIsFollowing = following.some((id) => String(id) === targetId);
+        const nextIsFollower = followers.some((id) => String(id) === targetId);
+        setIsFollowing(nextIsFollowing);
+        setIsFollower(nextIsFollower);
+        setIsFriend(Boolean(nextIsFollowing && nextIsFollower));
+      } else {
+        setIsFollowing(false);
+        setIsFollower(false);
+        setIsFriend(false);
+      }
       setEditing(false);
       setForm({
         name: u?.name || "",
@@ -180,6 +205,150 @@ export default function Profile() {
     } catch (err) {
       const msg = err?.response?.data?.message || err?.message || "Failed to delete post";
       setPostsError(msg);
+    }
+  }
+
+  async function handleToggleFollow() {
+    if (!routeUserId) return;
+    if (!readOnlyProfile) return;
+    if (followBusy) return;
+
+    if (isFriend) {
+      const ok = window.confirm("Remove this friend by unfollowing?");
+      if (!ok) return;
+    }
+
+    setStatus("");
+    setFollowBusy(true);
+    try {
+      const res = await toggleFollow(routeUserId);
+      const {
+        isFollowing: nextIsFollowing,
+        isFollower: nextIsFollower,
+        isFriend: nextIsFriend,
+        followersCount,
+        followingCount,
+      } = res.data || {};
+
+      setIsFollowing(Boolean(nextIsFollowing));
+      setIsFollower(Boolean(nextIsFollower));
+      setIsFriend(Boolean(nextIsFriend));
+      setUser((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          followersCount:
+            typeof followersCount === "number"
+              ? followersCount
+              : prev.followersCount ?? (Array.isArray(prev.followers) ? prev.followers.length : 0),
+        };
+      });
+
+      setMe((prev) => {
+        if (!prev) return prev;
+        const targetId = String(routeUserId);
+        const prevFollowing = Array.isArray(prev.following) ? prev.following : [];
+        const nextFollowing = Boolean(nextIsFollowing)
+          ? [...prevFollowing.filter((id) => String(id) !== targetId), targetId]
+          : prevFollowing.filter((id) => String(id) !== targetId);
+
+        return {
+          ...prev,
+          following: nextFollowing,
+          followingCount:
+            typeof followingCount === "number"
+              ? followingCount
+              : prev.followingCount ?? nextFollowing.length,
+        };
+      });
+    } catch (err) {
+      const msg = err?.response?.data?.message || err?.message || "Failed to toggle follow";
+      setStatus(msg);
+    } finally {
+      setFollowBusy(false);
+    }
+  }
+
+  const followButtonLabel = useMemo(() => {
+    if (!readOnlyProfile) return "";
+    if (isFriend) return "Friends";
+    if (isFollower && !isFollowing) return "Follow Back";
+    if (isFollowing) return "Following";
+    return "Follow";
+  }, [isFriend, isFollower, isFollowing, readOnlyProfile]);
+
+  function closeFollowList() {
+    setFollowListOpen(false);
+    setFollowListTitle("");
+    setFollowListUsers([]);
+    setFollowListLoading(false);
+  }
+
+  async function openFollowList(kind) {
+    if (!user?._id) return;
+    setStatus("");
+    setFollowListOpen(true);
+    setFollowListLoading(true);
+
+    if (kind === "followers") setFollowListTitle("Followers");
+    else if (kind === "following") setFollowListTitle("Following");
+    else setFollowListTitle("Mutual connections");
+
+    try {
+      const res =
+        kind === "followers"
+          ? await getFollowers(user._id)
+          : kind === "following"
+            ? await getFollowing(user._id)
+            : await getMutualUsers(user._id);
+      setFollowListUsers(res.data?.users || []);
+    } catch (err) {
+      const msg = err?.response?.data?.message || err?.message || "Failed to load list";
+      setStatus(msg);
+      setFollowListUsers([]);
+    } finally {
+      setFollowListLoading(false);
+    }
+  }
+
+  async function handleToggleFollowInList(userId, label) {
+    if (!userId) return;
+    if (!me?._id) return;
+    if (String(userId) === String(me._id)) return;
+
+    if (label === "Friends") {
+      const ok = window.confirm("Remove this friend by unfollowing?");
+      if (!ok) return;
+    }
+
+    setFollowListBusyIds((prev) => {
+      const set = new Set(prev || []);
+      set.add(String(userId));
+      return Array.from(set);
+    });
+
+    try {
+      const res = await toggleFollow(userId);
+      const { isFollowing: nextIsFollowing } = res.data || {};
+
+      setMe((prev) => {
+        if (!prev) return prev;
+        const prevFollowing = Array.isArray(prev.following) ? prev.following : [];
+        const nextFollowing = Boolean(nextIsFollowing)
+          ? [...prevFollowing.filter((id) => String(id) !== String(userId)), String(userId)]
+          : prevFollowing.filter((id) => String(id) !== String(userId));
+        return { ...prev, following: nextFollowing };
+      });
+
+      // If the list action was for the currently viewed profile, keep the main button in sync.
+      if (readOnlyProfile && String(routeUserId || "") === String(userId)) {
+        setIsFollowing(Boolean(nextIsFollowing));
+      }
+    } catch (err) {
+      const msg = err?.response?.data?.message || err?.message || "Failed to toggle follow";
+      setStatus(msg);
+    } finally {
+      setFollowListBusyIds((prev) => (prev || []).filter((id) => String(id) !== String(userId)));
     }
   }
 
@@ -343,6 +512,70 @@ export default function Profile() {
         <>
 
           <section className="card">
+            <div
+              className="topbar"
+              style={{ padding: 0, marginBottom: 12, alignItems: "center" }}
+            >
+              <div className="muted" style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => openFollowList("followers")}
+                  style={{ padding: "8px 10px" }}
+                >
+                  <strong style={{ color: "var(--text)" }}>
+                    {typeof user.followersCount === "number"
+                      ? user.followersCount
+                      : Array.isArray(user.followers)
+                        ? user.followers.length
+                        : 0}
+                  </strong>{" "}
+                  followers
+                </button>
+
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => openFollowList("following")}
+                  style={{ padding: "8px 10px" }}
+                >
+                  <strong style={{ color: "var(--text)" }}>
+                    {typeof user.followingCount === "number"
+                      ? user.followingCount
+                      : Array.isArray(user.following)
+                        ? user.following.length
+                        : 0}
+                  </strong>{" "}
+                  following
+                </button>
+
+                {readOnlyProfile ? (
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => openFollowList("mutual")}
+                    style={{ padding: "8px 10px" }}
+                  >
+                    Mutual connections
+                  </button>
+                ) : null}
+              </div>
+
+              {readOnlyProfile ? (
+                <div className="actionsRow">
+                  <button
+                    className={`btn ${isFollowing ? "" : "btnPrimary"}`}
+                    type="button"
+                    onClick={handleToggleFollow}
+                    disabled={followBusy}
+                    aria-busy={followBusy ? "true" : "false"}
+                  >
+                    {followBusy ? "..." : followButtonLabel}
+                  </button>
+                </div>
+              ) : null}
+            </div>
+
             <div className="row">
               <ProfileAvatar
                 avatarDisplaySrc={avatarDisplaySrc}
@@ -451,6 +684,17 @@ export default function Profile() {
         cancelLabel="Cancel"
         onCancel={cancelDeleteProfilePost}
         onConfirm={confirmDeleteProfilePost}
+      />
+
+      <FollowListModal
+        open={followListOpen}
+        title={followListTitle}
+        users={followListUsers}
+        loading={followListLoading}
+        onClose={closeFollowList}
+        me={me}
+        onToggleFollow={handleToggleFollowInList}
+        busyUserIds={followListBusyIds}
       />
     </div>
   );
