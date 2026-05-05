@@ -9,6 +9,7 @@ import CreatePostForm from "../components/CreatePostForm";
 import FeedPostCard from "../components/FeedPostCard";
 import NotificationsDropdown from "../components/NotificationsDropdown.jsx";
 import PostDetailsModal from "../components/PostDetailsModal";
+import UserSearch from "../components/UserSearch";
 
 export default function Feed() {
   const navigate = useNavigate();
@@ -182,6 +183,7 @@ export default function Feed() {
         <h1>Feed Page</h1>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {me ? <NotificationsDropdown /> : null}
+          {me ? <UserSearch /> : null}
           <button className="btn btnPrimary" type="button" onClick={openCreatePostModal}>
             Create
           </button>

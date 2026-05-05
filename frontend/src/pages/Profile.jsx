@@ -12,6 +12,7 @@ import ProfilePostCard from "../components/ProfilePostCard";
 import ProfileAvatar from "../components/ProfileAvatar";
 import ProfileForm from "../components/ProfileForm";
 import FollowListModal from "../components/FollowListModal";
+import UserSearch from "../components/UserSearch";
 
 function toCommaList(arr) {
   if (!Array.isArray(arr)) return "";
@@ -476,6 +477,7 @@ export default function Profile() {
         <h1>{readOnlyProfile ? `${user?.name || "Profile"}` : "My Profile"}</h1>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {me ? <NotificationsDropdown /> : null}
+          {me ? <UserSearch /> : null}
           <button className="btn" type="button" onClick={() => navigate("/feed")}>
             Back to feed
           </button>

@@ -10,6 +10,10 @@ const router = express.Router();
 
 const SAFE_USER_FIELDS = "name username profileImage role faculty program";
 
+function escapeRegex(str) {
+  return String(str || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function normalizeCommaList(value) {
   return String(value || "")
     .split(",")
@@ -59,6 +63,31 @@ router.get("/me", requireAuth, async (req, res) => {
     return res.json({ user });
   } catch (error) {
     return res.status(500).json({ message: "Failed to load user", error: error.message });
+  }
+});
+
+// GET /api/users/search?q=keyword
+// Search users by name or username (case-insensitive). Returns safe fields only.
+router.get("/search", requireAuth, async (req, res) => {
+  try {
+    const qRaw = String(req.query?.q || "").trim();
+    if (!qRaw) return res.json({ users: [] });
+
+    const q = escapeRegex(qRaw);
+    const rx = new RegExp(q, "i");
+
+    const users = await User.find({
+      $or: [{ name: rx }, { username: rx }],
+    })
+      .select("_id name username role profileImage faculty program")
+      .limit(10)
+      .sort({ name: 1 });
+
+    return res.json({ users });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ message: "Failed to search users", error: error.message });
   }
 });
 

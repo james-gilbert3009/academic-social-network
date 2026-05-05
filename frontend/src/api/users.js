@@ -5,6 +5,10 @@ export function toggleFollow(userId) {
   return api.put(`/api/users/${userId}/follow`);
 }
 
+export function searchUsers(query) {
+  return api.get("/api/users/search", { params: { q: query } });
+}
+
 export function getFollowers(userId) {
   return api.get(`/api/users/${userId}/followers`);
 }
