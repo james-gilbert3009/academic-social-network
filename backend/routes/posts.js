@@ -1,5 +1,7 @@
 import express from "express";
 import multer from "multer";
+import fs from "fs";
+import path from "path";
 
 import Post from "../models/Post.js";
 import User from "../models/User.js";
@@ -7,6 +9,23 @@ import Notification from "../models/Notification.js";
 import { requireAuth } from "../middleware/auth.js";
 
 const router = express.Router();
+
+async function deleteUploadsFileIfLocal(fileUrlOrPath) {
+  try {
+    if (typeof fileUrlOrPath !== "string") return;
+    if (!fileUrlOrPath.startsWith("/uploads/")) return;
+
+    const filename = path.basename(fileUrlOrPath);
+    if (!filename) return;
+
+    const fullPath = path.join(process.cwd(), "uploads", filename);
+    if (!fs.existsSync(fullPath)) return;
+
+    await fs.promises.unlink(fullPath);
+  } catch (err) {
+    // Best-effort cleanup: never crash request if file delete fails.
+  }
+}
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -172,6 +191,16 @@ router.delete("/:id", requireAuth, async (req, res) => {
 
     if (String(post.author) !== String(req.user.id)) {
       return res.status(403).json({ message: "Not allowed to delete this post" });
+    }
+
+    // Best-effort cleanup: delete post image file (only local /uploads).
+    await deleteUploadsFileIfLocal(post.image);
+
+    // Optional cleanup: delete notifications related to this post.
+    try {
+      await Notification.deleteMany({ post: post._id });
+    } catch (notifErr) {
+      // Best-effort cleanup: ignore notification deletion failures.
     }
 
     await post.deleteOne();

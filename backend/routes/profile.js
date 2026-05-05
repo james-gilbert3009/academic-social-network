@@ -1,10 +1,29 @@
 import express from "express";
 import multer from "multer";
+import fs from "fs";
+import path from "path";
 import User from "../models/User.js";
 import { requireAuth } from "../middleware/auth.js";
 import computeIsProfileComplete from "../utils/isProfileComplete.js";
 
 const router = express.Router();
+
+async function deleteUploadsFileIfLocal(fileUrlOrPath) {
+  try {
+    if (typeof fileUrlOrPath !== "string") return;
+    if (!fileUrlOrPath.startsWith("/uploads/")) return;
+
+    const filename = path.basename(fileUrlOrPath);
+    if (!filename) return;
+
+    const fullPath = path.join(process.cwd(), "uploads", filename);
+    if (!fs.existsSync(fullPath)) return;
+
+    await fs.promises.unlink(fullPath);
+  } catch (err) {
+    // Best-effort cleanup: never crash request if file delete fails.
+  }
+}
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -136,17 +155,20 @@ router.put("/me", requireAuth, upload.single("profileImage"), async (req, res) =
     if (updates.faculty !== undefined) updates.faculty = String(updates.faculty ?? "");
     if (updates.program !== undefined) updates.program = String(updates.program ?? "");
 
+    const removePhoto = req.body?.removeProfileImage;
+    const shouldRemoveExistingPhoto =
+      !req.file && (removePhoto === true || removePhoto === "true" || removePhoto === "1");
+
+    // If user uploads a new profile image OR requests removal, delete old file (only local /uploads).
+    if ((req.file || shouldRemoveExistingPhoto) && existing.profileImage) {
+      await deleteUploadsFileIfLocal(existing.profileImage);
+    }
+
     if (req.file) {
       updates.profileImage = `/uploads/${req.file.filename}`;
     }
 
-    const removePhoto = req.body?.removeProfileImage;
-    if (
-      !req.file &&
-      (removePhoto === true ||
-        removePhoto === "true" ||
-        removePhoto === "1")
-    ) {
+    if (shouldRemoveExistingPhoto) {
       updates.profileImage = "";
     }
 
