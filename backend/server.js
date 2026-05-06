@@ -10,6 +10,7 @@ import profileRoutes from "./routes/profile.js";
 import userRoutes from "./routes/users.js";
 import postsRoutes from "./routes/posts.js";
 import notificationsRoutes from "./routes/notifications.js";
+import tsiEventsRoutes from "./routes/tsiEvents.js";
 
 dotenv.config();
 
@@ -51,6 +52,7 @@ app.use("/api/profile", profileRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/posts", postsRoutes);
 app.use("/api/notifications", notificationsRoutes);
+app.use("/api/tsi-events", tsiEventsRoutes);
 
 mongoose
   .connect(process.env.MONGO_URI)

@@ -9,6 +9,7 @@ import CreatePostForm from "../components/CreatePostForm";
 import FeedPostCard from "../components/FeedPostCard";
 import NotificationsDropdown from "../components/NotificationsDropdown.jsx";
 import PostDetailsModal from "../components/PostDetailsModal";
+import TsiOfficialFeed from "../components/TsiOfficialFeed.jsx";
 import UserSearch from "../components/UserSearch";
 
 export default function Feed() {
@@ -194,59 +195,70 @@ export default function Feed() {
         activePage="feed"
         search={me ? <UserSearch /> : null}
         notifications={me ? <NotificationsDropdown /> : null}
-      >
-        <button className="primary-button btn-compact" type="button" onClick={openCreatePostModal}>
-          Create new
-        </button>
-      </AppHeader>
+      />
 
       <p className="feed-intro">Welcome to the TSI academic network.</p>
 
-      <div className="feed-filters">
-        {CATEGORY_OPTIONS.map((opt) => {
-          const active = selectedCategory === opt.value;
-          return (
-            <button
-              key={opt.value}
-              type="button"
-              className={active ? "filter-pill filter-pill--active" : "filter-pill"}
-              onClick={() => setSelectedCategory(opt.value)}
-            >
-              {opt.label}
+      <div className="feedLayout">
+        <div className="feedMainColumn">
+          <div className="feedMainColumn__header">
+            <h2 className="feedColumnTitle">Platform Feed</h2>
+            <button className="primary-button btn-compact" type="button" onClick={openCreatePostModal}>
+              Create new
             </button>
-          );
-        })}
-      </div>
-
-      {loading ? <div className="muted">Loading posts...</div> : null}
-      {error ? <div className="alert alertError">{error}</div> : null}
-
-      {!loading && !error && posts.length === 0 ? (
-        <section className="card">
-          <div className="emptyState">
-            No posts yet. Be the first to share something!
           </div>
-        </section>
-      ) : null}
 
-      {!loading && !error && posts.length > 0 && filteredPosts.length === 0 ? (
-        <section className="card">
-          <div className="emptyState">No posts found for this category.</div>
-        </section>
-      ) : null}
+          <div className="feed-filters">
+            {CATEGORY_OPTIONS.map((opt) => {
+              const active = selectedCategory === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  className={active ? "filter-pill filter-pill--active" : "filter-pill"}
+                  onClick={() => setSelectedCategory(opt.value)}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
 
-      <div className="feedStack">
-        {filteredPosts.map((post) => (
-          <FeedPostCard
-            key={post._id}
-            post={post}
-            currentUser={me}
-            onLike={handleLike}
-            onEdit={handleEdit}
-            onDelete={requestDeletePost}
-            onOpenDetails={handleOpenPostDetails}
-          />
-        ))}
+          {loading ? <div className="muted">Loading posts...</div> : null}
+          {error ? <div className="alert alertError">{error}</div> : null}
+
+          {!loading && !error && posts.length === 0 ? (
+            <section className="card">
+              <div className="emptyState">
+                No posts yet. Be the first to share something!
+              </div>
+            </section>
+          ) : null}
+
+          {!loading && !error && posts.length > 0 && filteredPosts.length === 0 ? (
+            <section className="card">
+              <div className="emptyState">No posts found for this category.</div>
+            </section>
+          ) : null}
+
+          <div className="feedStack">
+            {filteredPosts.map((post) => (
+              <FeedPostCard
+                key={post._id}
+                post={post}
+                currentUser={me}
+                onLike={handleLike}
+                onEdit={handleEdit}
+                onDelete={requestDeletePost}
+                onOpenDetails={handleOpenPostDetails}
+              />
+            ))}
+          </div>
+        </div>
+
+        <aside className="feedSidebarColumn">
+          <TsiOfficialFeed />
+        </aside>
       </div>
 
       <ConfirmDialog
