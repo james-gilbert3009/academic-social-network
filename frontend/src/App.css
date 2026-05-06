@@ -61,6 +61,21 @@
   margin: 0;
 }
 
+/* Platform user posts only — scrollbar stays on this list (desktop) */
+.platformPostsScroll {
+  max-height: calc(100vh - 250px);
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+@media (max-width: 768px) {
+  .platformPostsScroll {
+    max-height: none;
+    overflow-y: visible;
+    padding-right: 0;
+  }
+}
+
 .feedMainColumn__header {
   display: flex;
   align-items: center;
@@ -319,6 +334,25 @@
   color: #fff;
 }
 
+.app-header__profileThumb {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: center;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  background: rgba(255, 255, 255, 0.15);
+  /* Own layer + integer box keeps raster photos sharper than tiny fractional layout */
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+.app-header .app-header__drawer .app-header__profileThumb {
+  border-color: var(--border);
+  background: color-mix(in oklab, var(--surface) 88%, var(--bg));
+}
+
 .app-header__end {
   display: flex;
   flex-wrap: wrap;
@@ -327,16 +361,48 @@
   margin-left: auto;
 }
 
-/* Toolbar on blue bar: notifications, CTAs, Profile, Logout */
+/* Toolbar on blue bar: icon-only + link-style controls (no chip boxes) */
 .app-header__end .btn {
-  border-color: rgba(255, 255, 255, 0.38);
-  background: rgba(255, 255, 255, 0.12);
+  border: none;
+  background: transparent;
+  box-shadow: none;
   color: var(--nav-text);
 }
 
 .app-header__end .btn:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: none;
+}
+
+.app-header__end .notif__btn.btn[aria-expanded="true"] {
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.app-header__end .notif__btn.btn[aria-expanded="true"]:hover {
+  background: rgba(255, 255, 255, 0.18);
   border-color: rgba(255, 255, 255, 0.48);
+}
+
+.app-header__end .app-nav__link {
+  border-color: transparent;
+  background: transparent;
+}
+
+.app-header__end .app-nav__link:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: transparent;
+}
+
+.app-header__end .app-nav__link--active {
+  background: rgba(255, 255, 255, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  color: #fff;
+}
+
+.app-header__end .app-nav__link--active:hover {
+  background: rgba(255, 255, 255, 0.26);
+  border-color: rgba(255, 255, 255, 0.45);
 }
 
 .app-header .notif__menu .btn,
@@ -354,14 +420,16 @@
 }
 
 .app-header__end .secondary-button {
-  border-color: rgba(255, 255, 255, 0.42);
-  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  background: transparent;
+  box-shadow: none;
   color: var(--nav-text);
 }
 
 .app-header__end .secondary-button:hover {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.12);
+  border: none;
+  box-shadow: none;
 }
 
 .app-header__end .primary-button {
@@ -479,13 +547,24 @@
   .app-header .app-header__mobileBar .notif__btn.notif__btn--icon {
     width: 40px;
     height: 40px;
-    border-color: rgba(255, 255, 255, 0.42);
-    background: rgba(255, 255, 255, 0.12);
+    border: none;
+    background: transparent;
+    box-shadow: none;
     color: var(--nav-text);
   }
 
   .app-header .app-header__mobileBar .notif__btn.notif__btn--icon:hover {
-    background: rgba(255, 255, 255, 0.22);
+    background: rgba(255, 255, 255, 0.12);
+    box-shadow: none;
+  }
+
+  .app-header .app-header__mobileBar .notif__btn.notif__btn--icon[aria-expanded="true"] {
+    border: 1px solid rgba(255, 255, 255, 0.42);
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  .app-header .app-header__mobileBar .notif__btn.notif__btn--icon[aria-expanded="true"]:hover {
+    background: rgba(255, 255, 255, 0.18);
     border-color: rgba(255, 255, 255, 0.52);
   }
 
@@ -1777,7 +1856,7 @@
 .feedStack {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 14px;
   max-width: 640px;
   margin: 0 auto;
   width: 100%;
@@ -1785,20 +1864,20 @@
 
 @media (max-width: 640px) {
   .feedStack {
-    gap: 16px;
+    gap: 12px;
     max-width: none;
   }
 }
 
 .feedPostCard {
   text-align: left;
-  padding: 18px 18px 16px;
-  border-radius: 16px;
+  padding: 14px 14px 12px;
+  border-radius: 14px;
 }
 
 @media (max-width: 640px) {
   .feedPostCard {
-    padding: 14px 14px 12px;
+    padding: 12px 12px 10px;
     border-radius: 12px;
   }
 }
@@ -1807,20 +1886,20 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 12px;
+  gap: 10px;
 }
 
 .feedPostCard__authorRow {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
+  gap: 10px;
   min-width: 0;
   flex: 1;
 }
 
 .feedPostCard__avatar {
-  width: 48px;
-  height: 48px;
+  width: 42px;
+  height: 42px;
   border-radius: 999px;
   object-fit: cover;
   flex-shrink: 0;
@@ -1830,8 +1909,8 @@
 
 @media (max-width: 640px) {
   .feedPostCard__avatar {
-    width: 44px;
-    height: 44px;
+    width: 40px;
+    height: 40px;
   }
 }
 
@@ -1877,10 +1956,10 @@
 }
 
 .feedPostCard__body {
-  margin-top: 14px;
+  margin-top: 10px;
   color: var(--text-h);
-  font-size: 0.98rem;
-  line-height: 1.45;
+  font-size: 0.95rem;
+  line-height: 1.42;
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -1891,8 +1970,8 @@
 }
 
 .feedPostCard__media {
-  margin-top: 14px;
-  border-radius: 12px;
+  margin-top: 10px;
+  border-radius: 10px;
   overflow: hidden;
   border: 1px solid var(--border);
   background: var(--code-bg);
@@ -1900,19 +1979,19 @@
 
 .feedPostCard__media img {
   width: 100%;
-  max-height: min(56vh, 440px);
+  max-height: min(48vh, 380px);
   object-fit: contain;
   display: block;
 }
 
 .feedPostCard__toolbar {
-  margin-top: 14px;
-  padding-top: 14px;
+  margin-top: 10px;
+  padding-top: 10px;
   border-top: 1px solid var(--border);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px 14px;
+  gap: 8px 12px;
 }
 
 .feedPostCard__stats {
@@ -1965,8 +2044,8 @@
 }
 
 .feedPostCard__preview {
-  margin-top: 14px;
-  padding-top: 12px;
+  margin-top: 10px;
+  padding-top: 10px;
   border-top: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
 }
 

@@ -1,14 +1,48 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaBars, FaSearch, FaSignOutAlt, FaTimes, FaUser } from "react-icons/fa";
-import { setAuthToken } from "../api";
+import { API_BASE_URL, setAuthToken } from "../api";
+
+function profileThumbSrc(user) {
+  if (!user) return "";
+  const raw = user.profileImage;
+  if (raw) {
+    const path = String(raw);
+    if (path.startsWith("/uploads")) return `${API_BASE_URL}${path}`;
+    return path;
+  }
+  return `https://api.dicebear.com/8.x/initials/png?seed=${encodeURIComponent(user.name || "User")}&size=96`;
+}
+
+function HeaderProfileGlyph({ currentUser, iconSize }) {
+  const src = profileThumbSrc(currentUser);
+  if (!src) {
+    return <FaUser size={iconSize} aria-hidden />;
+  }
+  return (
+    <img
+      className="app-header__profileThumb"
+      src={src}
+      alt=""
+      width={32}
+      height={32}
+      decoding="sync"
+    />
+  );
+}
 
 /**
  * Shared top header for authenticated pages (Feed, Profile).
  * Desktop: Feed + search together; notifications + CTAs + Profile + Logout on the right.
  * Mobile (≤768px): search opens from icon only; other actions live in hamburger drawer.
  */
-export default function AppHeader({ activePage = "feed", search = null, notifications = null, children }) {
+export default function AppHeader({
+  activePage = "feed",
+  search = null,
+  notifications = null,
+  currentUser = null,
+  children,
+}) {
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -107,7 +141,7 @@ export default function AppHeader({ activePage = "feed", search = null, notifica
             }
             onClick={() => navigate("/profile")}
           >
-            <FaUser size={14} aria-hidden />
+            <HeaderProfileGlyph currentUser={currentUser} iconSize={14} />
             Profile
           </button>
           <button className="secondary-button btn-compact btnWithIcon" type="button" onClick={logout}>
@@ -212,7 +246,7 @@ export default function AppHeader({ activePage = "feed", search = null, notifica
                 }
                 onClick={goProfile}
               >
-                <FaUser size={16} aria-hidden />
+                <HeaderProfileGlyph currentUser={currentUser} iconSize={16} />
                 Profile
               </button>
             </nav>

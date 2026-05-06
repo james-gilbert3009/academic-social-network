@@ -548,6 +548,7 @@ export default function Profile() {
     <div className="page">
       <AppHeader
         activePage="profile"
+        currentUser={me}
         search={me ? <UserSearch /> : null}
         notifications={me ? <NotificationsDropdown /> : null}
       >

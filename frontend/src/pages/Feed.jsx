@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
+import { FaPlus } from "react-icons/fa";
 
 import { getProfile } from "../api/profile";
 import { deletePost, getPosts, toggleLike, updatePost } from "../api/posts";
@@ -193,17 +194,20 @@ export default function Feed() {
     <div className="page">
       <AppHeader
         activePage="feed"
+        currentUser={me}
         search={me ? <UserSearch /> : null}
         notifications={me ? <NotificationsDropdown /> : null}
       />
 
-      <p className="feed-intro">Welcome to the TSI academic network.</p>
-
       <div className="feedLayout">
         <div className="feedMainColumn">
           <div className="feedMainColumn__header">
-            <h2 className="feedColumnTitle">Platform Feed</h2>
-            <button className="primary-button btn-compact" type="button" onClick={openCreatePostModal}>
+            <button
+              className="primary-button btn-compact btnWithIcon"
+              type="button"
+              onClick={openCreatePostModal}
+            >
+              <FaPlus aria-hidden="true" />
               Create new
             </button>
           </div>
@@ -241,18 +245,20 @@ export default function Feed() {
             </section>
           ) : null}
 
-          <div className="feedStack">
-            {filteredPosts.map((post) => (
-              <FeedPostCard
-                key={post._id}
-                post={post}
-                currentUser={me}
-                onLike={handleLike}
-                onEdit={handleEdit}
-                onDelete={requestDeletePost}
-                onOpenDetails={handleOpenPostDetails}
-              />
-            ))}
+          <div className="platformPostsScroll">
+            <div className="feedStack">
+              {filteredPosts.map((post) => (
+                <FeedPostCard
+                  key={post._id}
+                  post={post}
+                  currentUser={me}
+                  onLike={handleLike}
+                  onEdit={handleEdit}
+                  onDelete={requestDeletePost}
+                  onOpenDetails={handleOpenPostDetails}
+                />
+              ))}
+            </div>
           </div>
         </div>
 
