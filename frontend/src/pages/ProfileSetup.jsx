@@ -105,16 +105,25 @@ export default function ProfileSetup() {
   }
 
   return (
-    <div className="page">
-      <div className="topbar">
-        <h1>Profile setup</h1>
-      </div>
-      
-      <div className="muted">You can do this now or later.</div>
+    <div className="page page-container auth-page auth-page--wide">
+      <header className="auth-brand">
+        <span className="brand-mark">TSI CONNECT</span>
+        <p className="brand-tagline">Finish your academic profile</p>
+      </header>
 
-      {profileLoading ? <div className="muted">Loading your profile…</div> : null}
+      <p className="muted" style={{ textAlign: "center", marginTop: -12, marginBottom: 8 }}>
+        You can complete this now or skip and fill in details later.
+      </p>
 
-      <form className="card form" onSubmit={submit}>
+      {profileLoading ? (
+        <div className="muted" style={{ textAlign: "center" }}>
+          Loading your profile…
+        </div>
+      ) : null}
+
+      <form className="card form auth-card" onSubmit={submit}>
+        <h1 style={{ marginBottom: 16 }}>Profile setup</h1>
+
         <label className="field">
           <span>Full name</span>
           <input
@@ -194,10 +203,19 @@ export default function ProfileSetup() {
         ) : null}
 
         <div className="actionsRow">
-          <button className="btn btnPrimary" type="submit" disabled={profileLoading || saving}>
+          <button
+            className="primary-button btn-compact"
+            type="submit"
+            disabled={profileLoading || saving}
+          >
             {saving ? "Saving..." : "Save profile"}
           </button>
-          <button className="btn" type="button" onClick={completeLater} disabled={profileLoading || saving}>
+          <button
+            className="secondary-button btn-compact"
+            type="button"
+            onClick={completeLater}
+            disabled={profileLoading || saving}
+          >
             Complete later
           </button>
         </div>
@@ -207,4 +225,3 @@ export default function ProfileSetup() {
     </div>
   );
 }
-

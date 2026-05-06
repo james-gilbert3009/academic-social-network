@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "../api";
 import { searchUsers } from "../api/users";
 import RoleBadge from "./RoleBadge";
-import { FaFilter } from "react-icons/fa";
+import { FaFilter, FaSearch } from "react-icons/fa";
 
 function profileImageSrc(profileImage) {
   if (!profileImage) return null;
@@ -68,6 +68,22 @@ export default function UserSearch() {
 
   return (
     <div style={{ position: "relative", minWidth: 220, maxWidth: 420, flex: "1 1 300px" }}>
+      <span
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          left: 12,
+          top: "50%",
+          transform: "translateY(-50%)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "var(--muted)",
+          pointerEvents: "none",
+        }}
+      >
+        <FaSearch size={14} />
+      </span>
       <input
         ref={inputRef}
         value={query}
@@ -77,10 +93,10 @@ export default function UserSearch() {
         style={{
           width: "100%",
           boxSizing: "border-box",
-          padding: "10px 170px 10px 12px",
+          padding: "10px 170px 10px 38px",
           borderRadius: 10,
           border: "1px solid var(--border)",
-          background: "var(--bg)",
+          background: "var(--surface)",
           color: "var(--text-h)",
           font: "14px/1.2 system-ui",
         }}
@@ -123,7 +139,7 @@ export default function UserSearch() {
             padding: "0 8px",
             borderRadius: 8,
             border: "1px solid var(--border)",
-            background: "var(--bg)",
+            background: "var(--surface)",
             color: "var(--text-h)",
             font: "13px/1.2 system-ui",
           }}
@@ -226,7 +242,7 @@ export default function UserSearch() {
                       <div
                         style={{
                           fontWeight: 700,
-                          color: "var(--text)",
+                          color: "var(--text-h)",
                           display: "flex",
                           alignItems: "center",
                           gap: 8,

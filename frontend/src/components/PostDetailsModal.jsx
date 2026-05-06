@@ -9,9 +9,13 @@ import {
   FaBook,
   FaBullhorn,
   FaCalendarAlt,
+  FaComment,
+  FaComments,
   FaFlask,
+  FaHeart,
   FaQuestionCircle,
   FaRegFileAlt,
+  FaRegHeart,
 } from "react-icons/fa";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
@@ -148,7 +152,7 @@ export default function PostDetailsModal({ post, currentUser, onClose, onPostUpd
           <h2 id="post-details-title" style={{ marginBottom: 0 }}>
             Post
           </h2>
-          <button className="btn" type="button" onClick={onClose}>
+          <button className="secondary-button btn-compact" type="button" onClick={onClose}>
             Close
           </button>
         </div>
@@ -218,26 +222,45 @@ export default function PostDetailsModal({ post, currentUser, onClose, onPostUpd
           <div className="postDetailsModal__engagement">
             <div className="postDetailsModal__stats" aria-live="polite">
               <span>
+                <FaRegHeart size={13} aria-hidden />
                 {likesCount} {likesCount === 1 ? "like" : "likes"}
               </span>
               <span>
+                <FaComment size={13} aria-hidden />
                 {commentsCount} {commentsCount === 1 ? "comment" : "comments"}
               </span>
             </div>
             <button
-              className="btn btnPrimary"
+              className={
+                liked
+                  ? "primary-button btn-compact btnWithIcon"
+                  : "outline-button btn-compact btnWithIcon"
+              }
               type="button"
               onClick={handleLike}
               disabled={likeBusy || !currentUser}
             >
-              {likeBusy ? "…" : liked ? "Unlike" : "Like"}
+              {likeBusy ? (
+                "…"
+              ) : liked ? (
+                <>
+                  <FaHeart size={14} aria-hidden />
+                  Unlike
+                </>
+              ) : (
+                <>
+                  <FaRegHeart size={14} aria-hidden />
+                  Like
+                </>
+              )}
             </button>
             {!currentUser ? <span className="muted" style={{ fontSize: "0.9rem" }}>Log in to like or comment.</span> : null}
           </div>
 
           {error ? <div className="alert alertError" style={{ marginBottom: 12 }}>{error}</div> : null}
 
-          <div className="postDetailsModal__sectionTitle" id="comments-heading">
+          <div className="postDetailsModal__sectionTitle postDetailsModal__sectionTitle--withIcon" id="comments-heading">
+            <FaComments size={12} aria-hidden />
             Comments
           </div>
           <div className="postDetailsModalComments" role="region" aria-labelledby="comments-heading">
@@ -273,7 +296,7 @@ export default function PostDetailsModal({ post, currentUser, onClose, onPostUpd
                     </div>
                     {showDelete ? (
                       <button
-                        className="btn btnDanger"
+                        className="danger-button btn-compact"
                         type="button"
                         onClick={() => setPendingDeleteCommentId(c._id)}
                         disabled={commentBusy}
@@ -301,7 +324,7 @@ export default function PostDetailsModal({ post, currentUser, onClose, onPostUpd
                   disabled={commentBusy}
                   aria-label="Comment text"
                 />
-                <button className="btn btnPrimary" type="submit" disabled={commentSubmitDisabled}>
+                <button className="primary-button btn-compact" type="submit" disabled={commentSubmitDisabled}>
                   {commentBusy ? "Posting…" : "Post comment"}
                 </button>
               </div>

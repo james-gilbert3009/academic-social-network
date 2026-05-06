@@ -109,13 +109,19 @@ export default function CreatePostForm({
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
           <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <span style={{ fontSize: 14, color: "var(--text)" }}>Category</span>
+            <span style={{ fontSize: 14, color: "var(--muted)" }}>Category</span>
             <select
               className="input"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
               disabled={submitting}
-              style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border)" }}
+              style={{
+                padding: "10px 12px",
+                borderRadius: 10,
+                border: "1px solid var(--border)",
+                background: "var(--surface)",
+                color: "var(--text-h)",
+              }}
             >
               <option value="question">Question</option>
               <option value="research">Research</option>
@@ -134,6 +140,17 @@ export default function CreatePostForm({
           placeholder={placeholder}
           onChange={(e) => setContent(e.target.value)}
           maxLength={1000}
+          style={{
+            width: "100%",
+            boxSizing: "border-box",
+            padding: "10px 12px",
+            borderRadius: 10,
+            border: "1px solid var(--border)",
+            background: "var(--surface)",
+            color: "var(--text-h)",
+            font: "16px/1.25 system-ui",
+            outline: "none",
+          }}
         />
 
         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
@@ -147,7 +164,7 @@ export default function CreatePostForm({
 
           {imageFile ? (
             <button
-              className="btn"
+              className="secondary-button btn-compact"
               type="button"
               onClick={() => validateAndSetImage(null)}
               disabled={submitting}
@@ -156,7 +173,7 @@ export default function CreatePostForm({
             </button>
           ) : null}
 
-          <button className="btn btnPrimary" type="submit" disabled={!canSubmit}>
+          <button className="primary-button btn-compact" type="submit" disabled={!canSubmit}>
             {submitting ? "Posting..." : "Post"}
           </button>
         </div>

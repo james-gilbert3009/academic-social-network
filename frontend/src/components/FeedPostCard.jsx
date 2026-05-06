@@ -5,9 +5,13 @@ import {
   FaBook,
   FaBullhorn,
   FaCalendarAlt,
+  FaComment,
+  FaComments,
   FaFlask,
+  FaHeart,
   FaQuestionCircle,
   FaRegFileAlt,
+  FaRegHeart,
 } from "react-icons/fa";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
@@ -109,10 +113,10 @@ export default function FeedPostCard({
 
         {isOwner ? (
           <div className="feedPostCard__ownerActions">
-            <button className="btn" type="button" onClick={() => onEdit?.(post)}>
+            <button className="secondary-button btn-compact" type="button" onClick={() => onEdit?.(post)}>
               Edit
             </button>
-            <button className="btn btnDanger" type="button" onClick={() => onDelete?.(post)}>
+            <button className="danger-button btn-compact" type="button" onClick={() => onDelete?.(post)}>
               Delete
             </button>
           </div>
@@ -140,19 +144,27 @@ export default function FeedPostCard({
 
       <footer className="feedPostCard__toolbar">
         <div className="feedPostCard__stats" aria-label="Engagement">
-          <span>{likeCount} {likeCount === 1 ? "like" : "likes"}</span>
-          <span>{commentCount} {commentCount === 1 ? "comment" : "comments"}</span>
+          <span>
+            <FaRegHeart size={13} aria-hidden />
+            {likeCount} {likeCount === 1 ? "like" : "likes"}
+          </span>
+          <span>
+            <FaComment size={13} aria-hidden />
+            {commentCount} {commentCount === 1 ? "comment" : "comments"}
+          </span>
         </div>
         <div className="feedPostCard__actions">
           <button
-            className="btn btnPrimary"
+            className="btn btnPrimary btnWithIcon"
             type="button"
             onClick={() => onLike?.(post)}
             disabled={!currentUser}
           >
+            {liked ? <FaHeart size={14} aria-hidden /> : <FaRegHeart size={14} aria-hidden />}
             {liked ? "Unlike" : "Like"}
           </button>
-          <button className="btn" type="button" onClick={() => onOpenDetails?.(post)}>
+          <button className="btn btnWithIcon" type="button" onClick={() => onOpenDetails?.(post)}>
+            <FaComment size={14} aria-hidden />
             Comments
           </button>
         </div>
@@ -173,7 +185,13 @@ export default function FeedPostCard({
             );
           })}
           {commentCount > 2 ? (
-            <button className="btn" type="button" style={{ marginTop: 10 }} onClick={() => onOpenDetails?.(post)}>
+            <button
+              className="secondary-button btn-compact btnWithIcon"
+              type="button"
+              style={{ marginTop: 10 }}
+              onClick={() => onOpenDetails?.(post)}
+            >
+              <FaComments size={14} aria-hidden />
               View all comments
             </button>
           ) : null}

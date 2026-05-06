@@ -4,9 +4,11 @@ import {
   FaBook,
   FaBullhorn,
   FaCalendarAlt,
+  FaComment,
   FaFlask,
   FaQuestionCircle,
   FaRegFileAlt,
+  FaRegHeart,
 } from "react-icons/fa";
 
 const CATEGORY_LABELS = {
@@ -92,8 +94,14 @@ export default function ProfilePostCard({ post, currentUserId, onClick, onEdit, 
         </div>
 
         <div className="muted" style={{ fontSize: 13, display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <span>Likes: {likeCount}</span>
-          <span>Comments: {commentCount}</span>
+          <span className="profilePostCard__metaItem">
+            <FaRegHeart size={12} aria-hidden />
+            Likes: {likeCount}
+          </span>
+          <span className="profilePostCard__metaItem">
+            <FaComment size={12} aria-hidden />
+            Comments: {commentCount}
+          </span>
           {createdLabel ? <span>{createdLabel}</span> : null}
         </div>
 

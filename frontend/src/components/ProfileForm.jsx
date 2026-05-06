@@ -27,7 +27,7 @@ export default function ProfileForm({
             <>
               <h2
                 style={{
-                  marginBottom: 6,
+                  marginBottom: 8,
                   display: "flex",
                   alignItems: "center",
                   gap: 10,
@@ -37,19 +37,25 @@ export default function ProfileForm({
                 <span>{user.name}</span>
                 <RoleBadge role={user?.role} />
               </h2>
-              <div className="muted">{user.email}</div>
+              <div className="muted" style={{ marginBottom: 10 }}>
+                {user.email}
+              </div>
             </>
           ) : (
             <>
-              <label className="field" style={{ marginBottom: 4 }}>
-                <span className="muted">Full name</span>
+              <label className="field" style={{ marginBottom: 8 }}>
+                <span className="section-title" style={{ marginBottom: 6 }}>
+                  Full name
+                </span>
                 <input
                   value={form.name}
                   onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                   autoComplete="name"
                 />
               </label>
-              <div className="muted">{user.email}</div>
+              <div className="muted" style={{ marginBottom: 8 }}>
+                {user.email}
+              </div>
               <RoleBadge role={user?.role} />
             </>
           )}
@@ -57,13 +63,13 @@ export default function ProfileForm({
         {!readOnly ? (
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {!editing ? (
-              <button className="btn btnPrimary" type="button" onClick={onStartEdit}>
+              <button className="primary-button btn-compact" type="button" onClick={onStartEdit}>
                 Edit profile
               </button>
             ) : (
               <>
                 <button
-                  className="btn btnPrimary"
+                  className="primary-button btn-compact"
                   type="button"
                   disabled={!canSave}
                   onClick={() => {
@@ -73,7 +79,12 @@ export default function ProfileForm({
                 >
                   {saving ? "Saving..." : "Save"}
                 </button>
-                <button className="btn" type="button" onClick={onCancelEdit} disabled={saving}>
+                <button
+                  className="secondary-button btn-compact"
+                  type="button"
+                  onClick={onCancelEdit}
+                  disabled={saving}
+                >
                   Cancel
                 </button>
               </>
@@ -84,17 +95,15 @@ export default function ProfileForm({
 
       <form
         className={editing && !readOnly ? "form" : undefined}
-        style={{ marginTop: 12, width: "100%", maxWidth: 520 }}
+        style={{ marginTop: 16, width: "100%", maxWidth: 640 }}
         onSubmit={onSubmitProfile}
       >
         <div className="grid2" style={{ marginTop: 0 }}>
           <div>
-            <div className="muted" style={{ marginBottom: 6 }}>
-              Bio
-            </div>
+            <div className="section-title">About</div>
             {!editing ? (
-              <div style={{ whiteSpace: "pre-wrap" }}>
-                {user.bio ? user.bio : <span className="muted">—</span>}
+              <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.5 }}>
+                {user.bio ? user.bio : <span className="muted">No bio yet.</span>}
               </div>
             ) : (
               <textarea
@@ -107,22 +116,20 @@ export default function ProfileForm({
             )}
           </div>
           <div>
-            <div className="muted" style={{ marginBottom: 6 }}>
-              Academic
-            </div>
+            <div className="section-title">Academic affiliation</div>
             {!editing ? (
-              <div>
-                <div>
-                  <span className="muted">Faculty: </span>
-                  {user.faculty ? user.faculty : <span className="muted">—</span>}
+              <dl className="profile-meta">
+                <div className="profile-meta__row">
+                  <dt>Faculty</dt>
+                  <dd>{user.faculty ? user.faculty : <span className="muted">—</span>}</dd>
                 </div>
-                <div>
-                  <span className="muted">Program: </span>
-                  {user.program ? user.program : <span className="muted">—</span>}
+                <div className="profile-meta__row">
+                  <dt>Program</dt>
+                  <dd>{user.program ? user.program : <span className="muted">—</span>}</dd>
                 </div>
-              </div>
+              </dl>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 <label className="field" style={{ margin: 0 }}>
                   <span className="muted">Faculty</span>
                   <input
@@ -144,11 +151,9 @@ export default function ProfileForm({
           </div>
         </div>
 
-        <div className="grid2" style={{ marginTop: 12 }}>
+        <div className="grid2" style={{ marginTop: 18 }}>
           <div>
-            <div className="muted" style={{ marginBottom: 6 }}>
-              Skills
-            </div>
+            <div className="section-title">Skills</div>
             {!editing ? (
               <div className="chipRow">
                 {(user.skills || []).length ? (
@@ -171,9 +176,7 @@ export default function ProfileForm({
             )}
           </div>
           <div>
-            <div className="muted" style={{ marginBottom: 6 }}>
-              Interests
-            </div>
+            <div className="section-title">Interests</div>
             {!editing ? (
               <div className="chipRow">
                 {(user.interests || []).length ? (

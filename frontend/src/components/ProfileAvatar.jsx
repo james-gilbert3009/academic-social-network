@@ -305,7 +305,7 @@ export default function ProfileAvatar({
                 objectFit: "contain",
                 display: "block",
                 borderRadius: 8,
-                background: "var(--bg)",
+                background: "var(--surface)",
               }}
             />
           </div>
@@ -339,7 +339,7 @@ export default function ProfileAvatar({
                 marginBottom: 12,
                 border: "1px solid var(--border)",
                 boxSizing: "border-box",
-                background: "var(--bg)",
+                background: "var(--surface)",
               }}
             />
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>

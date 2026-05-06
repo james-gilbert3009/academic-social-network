@@ -64,7 +64,7 @@ export default function FollowListModal({
       <div className="modalCard" onClick={(e) => e.stopPropagation()} style={{ textAlign: "left" }}>
         <div className="topbar" style={{ marginBottom: helperText ? 4 : 10 }}>
           <h2 style={{ marginBottom: 0 }}>{title || "Users"}</h2>
-          <button className="btn" type="button" onClick={onClose}>
+          <button className="secondary-button btn-compact" type="button" onClick={onClose}>
             Close
           </button>
         </div>

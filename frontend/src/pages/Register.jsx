@@ -2,6 +2,24 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api, setAuthToken } from "../api";
 
+const ROLE_OPTIONS = [
+  {
+    value: "student",
+    title: "Student",
+    hint: "Courses, study groups, and academic discussions.",
+  },
+  {
+    value: "lecturer",
+    title: "Lecturer",
+    hint: "Teaching staff and module organizers.",
+  },
+  {
+    value: "professor",
+    title: "Professor",
+    hint: "Senior academic roles and research leadership.",
+  },
+];
+
 export default function Register() {
   const navigate = useNavigate();
   const [status, setStatus] = useState("");
@@ -50,10 +68,15 @@ export default function Register() {
   }
 
   return (
-    <div className="page">
-      <h1>Register</h1>
+    <div className="page page-container auth-page auth-page--wide">
+      <header className="auth-brand">
+        <span className="brand-mark">TSI CONNECT</span>
+        <p className="brand-tagline">Academic networking platform</p>
+      </header>
 
-      <form className="card form" onSubmit={submit}>
+      <form className="card form auth-card" onSubmit={submit}>
+        <h1 style={{ marginBottom: 16 }}>Create account</h1>
+
         <label className="field">
           <span>Name</span>
           <input
@@ -81,21 +104,30 @@ export default function Register() {
             autoComplete="email"
             value={form.email}
             onChange={(e) => updateField("email", e.target.value)}
-            placeholder="you@uni.edu"
+            placeholder="you@tsi.lv"
           />
         </label>
 
-        <label className="field">
-          <span>Role</span>
-          <select
-            value={form.role}
-            onChange={(e) => updateField("role", e.target.value)}
-          >
-            <option value="student">Student</option>
-            <option value="lecturer">Lecturer</option>
-            <option value="professor">Professor</option>
-          </select>
-        </label>
+        <div className="field">
+          <span className="section-title" style={{ marginBottom: 10 }}>
+            Your role
+          </span>
+          <div className="role-picker" role="radiogroup" aria-label="Your role">
+            {ROLE_OPTIONS.map((opt) => (
+              <label key={opt.value} className="role-option">
+                <input
+                  type="radio"
+                  name="role"
+                  value={opt.value}
+                  checked={form.role === opt.value}
+                  onChange={() => updateField("role", opt.value)}
+                />
+                <span className="role-option__title">{opt.title}</span>
+                <span className="role-option__hint">{opt.hint}</span>
+              </label>
+            ))}
+          </div>
+        </div>
 
         <label className="field">
           <span>Birth date</span>
@@ -124,7 +156,7 @@ export default function Register() {
             />
             <button
               type="button"
-              className="btn"
+              className="secondary-button"
               onClick={toggleShowPassword}
               aria-label={showPassword ? "Hide password" : "Show password"}
             >
@@ -133,15 +165,15 @@ export default function Register() {
           </div>
         </div>
 
-        <button className="btn btnPrimary" type="submit">
+        <button className="primary-button" type="submit">
           Create account
         </button>
 
         {status ? <div className="alert alertError">{status}</div> : null}
       </form>
 
-      <p className="muted">
-        Already have an account? <Link to="/login">Login</Link>
+      <p className="muted" style={{ textAlign: "center" }}>
+        Already have an account? <Link to="/login">Sign in</Link>
       </p>
     </div>
   );

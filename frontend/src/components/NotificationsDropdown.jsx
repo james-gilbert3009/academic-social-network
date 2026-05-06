@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { FaBell } from "react-icons/fa";
 
 import { API_BASE_URL } from "../api";
 import { getNotifications, markAllNotificationsRead, markNotificationRead } from "../api/notifications";
@@ -143,14 +144,15 @@ export default function NotificationsDropdown() {
   return (
     <div ref={rootRef} className="notif">
       <button
-        className="btn notif__btn"
+        className="btn notif__btn notif__btn--icon"
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
+        aria-label="Notifications"
         title="Notifications"
       >
-        Notifications
+        <FaBell size={18} aria-hidden />
         {showBadge ? (
           <span className="notif__badge">
             {unreadCount}

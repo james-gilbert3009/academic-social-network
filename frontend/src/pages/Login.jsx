@@ -28,17 +28,22 @@ export default function Login() {
   }
 
   return (
-    <div className="page">
-      <h1>Login</h1>
+    <div className="page page-container auth-page">
+      <header className="auth-brand">
+        <span className="brand-mark">TSI CONNECT</span>
+        <p className="brand-tagline">Academic networking platform</p>
+      </header>
 
-      <form className="card form" onSubmit={submit}>
+      <form className="card form auth-card" onSubmit={submit}>
+        <h1 style={{ marginBottom: 16 }}>Sign in</h1>
+
         <label className="field">
           <span>Email or username</span>
           <input
             autoComplete="username"
             value={form.identifier}
             onChange={(e) => setForm((f) => ({ ...f, identifier: e.target.value }))}
-            placeholder="you@uni.edu or james"
+            placeholder="you@tsi.lv or username"
           />
         </label>
 
@@ -54,7 +59,7 @@ export default function Login() {
               style={{ flex: 1 }}
             />
             <button
-              className="btn"
+              className="secondary-button"
               type="button"
               onClick={() => setShowPassword((v) => !v)}
             >
@@ -67,15 +72,15 @@ export default function Login() {
           <Link to="/forgot-password">Forgot password?</Link>
         </p>
 
-        <button className="btn btnPrimary" type="submit">
-          Login
+        <button className="primary-button" type="submit">
+          Sign in
         </button>
 
         {status ? <div className="alert alertError">{status}</div> : null}
       </form>
 
-      <p className="muted">
-        No account? <Link to="/register">Register</Link>
+      <p className="muted" style={{ textAlign: "center" }}>
+        No account? <Link to="/register">Create one</Link>
       </p>
     </div>
   );

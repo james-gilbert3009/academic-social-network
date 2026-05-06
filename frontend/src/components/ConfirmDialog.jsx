@@ -40,10 +40,10 @@ export default function ConfirmDialog({
         </h2>
         <p style={{ margin: "0 0 20px", lineHeight: 1.45, color: "var(--text-h)" }}>{message}</p>
         <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", flexWrap: "wrap" }}>
-          <button className="btn" type="button" onClick={onCancel} disabled={working}>
+          <button className="secondary-button btn-compact" type="button" onClick={onCancel} disabled={working}>
             {cancelLabel}
           </button>
-          <button className="btn btnDanger" type="button" onClick={handleConfirm} disabled={working}>
+          <button className="danger-button btn-compact" type="button" onClick={handleConfirm} disabled={working}>
             {working ? "Please wait…" : confirmLabel}
           </button>
         </div>

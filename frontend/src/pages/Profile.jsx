@@ -10,6 +10,7 @@ import {
   getFollowing,
   toggleFollow,
 } from "../api/users";
+import AppHeader from "../components/AppHeader.jsx";
 import ConfirmDialog from "../components/ConfirmDialog";
 import CreatePostForm from "../components/CreatePostForm";
 import NotificationsDropdown from "../components/NotificationsDropdown.jsx";
@@ -19,7 +20,7 @@ import ProfileAvatar from "../components/ProfileAvatar";
 import ProfileForm from "../components/ProfileForm";
 import FollowListModal from "../components/FollowListModal";
 import UserSearch from "../components/UserSearch";
-import RoleBadge from "../components/RoleBadge";
+import { FaUser } from "react-icons/fa";
 
 function toCommaList(arr) {
   if (!Array.isArray(arr)) return "";
@@ -419,12 +420,6 @@ export default function Profile() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routeUserId]);
 
-  function logout() {
-    localStorage.removeItem("token");
-    setAuthToken("");
-    navigate("/login", { replace: true });
-  }
-
   function openDeleteAccountModal() {
     setStatus("");
     setShowDeleteAccountModal(true);
@@ -551,24 +546,31 @@ export default function Profile() {
 
   return (
     <div className="page">
-      <div className="topbar">
-        <h1>{readOnlyProfile ? "Profile" : "My Profile"}</h1>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {me ? <NotificationsDropdown /> : null}
-          {me ? <UserSearch /> : null}
-          <button className="btn" type="button" onClick={() => navigate("/feed")}>
-            Back to feed
+      <AppHeader
+        activePage="profile"
+        search={me ? <UserSearch /> : null}
+        notifications={me ? <NotificationsDropdown /> : null}
+      >
+        {readOnlyProfile ? (
+          <button
+            className="secondary-button btn-compact btnWithIcon"
+            type="button"
+            onClick={() => navigate("/profile")}
+          >
+            <FaUser size={14} aria-hidden />
+            My profile
           </button>
-          {readOnlyProfile ? (
-            <button className="btn" type="button" onClick={() => navigate("/profile")}>
-              My profile
-            </button>
-          ) : null}
-          <button className="btn" type="button" onClick={logout}>
-            Logout
-          </button>
-        </div>
-      </div>
+        ) : null}
+      </AppHeader>
+
+      <h1 style={{ marginBottom: 6 }}>
+        {readOnlyProfile ? "Member profile" : "Your profile"}
+      </h1>
+      <p className="muted" style={{ marginBottom: 8 }}>
+        {readOnlyProfile
+          ? "Academic details and shared posts."
+          : "Manage how you appear on TSI CONNECT."}
+      </p>
 
       {loading ? <div className="muted">Loading...</div> : null}
 
@@ -583,7 +585,7 @@ export default function Profile() {
             </div>
             <div className="actionsRow">
               <button
-                className="btn btnPrimary"
+                className="primary-button btn-compact"
                 type="button"
                 onClick={() => navigate("/profile-setup")}
               >
@@ -597,41 +599,42 @@ export default function Profile() {
       {user ? (
         <>
 
-          <section className="card">
+          <section className="card profile-hero">
             <div
               className="topbar"
               style={{ padding: 0, marginBottom: 12, alignItems: "center" }}
             >
-              <div className="muted" style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                 {isOwnProfile ? (
                   <button
                     type="button"
-                    className="btn"
+                    className="secondary-button btn-compact"
                     onClick={() => openFollowList("connections")}
-                    style={{ padding: "8px 10px" }}
                   >
-                    <strong style={{ color: "var(--text)" }}>{connectionsCount}</strong>{" "}
+                    <strong style={{ color: "var(--text-h)", fontVariantNumeric: "tabular-nums" }}>
+                      {connectionsCount}
+                    </strong>{" "}
                     Connections
                   </button>
                 ) : (
                   <button
                     type="button"
-                    className="btn"
+                    className="secondary-button btn-compact"
                     onClick={() => openFollowList("mutualConnections")}
-                    style={{ padding: "8px 10px" }}
                   >
-                    <strong style={{ color: "var(--text)" }}>{mutualConnectionsCount}</strong>{" "}
-                    Mutual Connections
+                    <strong style={{ color: "var(--text-h)", fontVariantNumeric: "tabular-nums" }}>
+                      {mutualConnectionsCount}
+                    </strong>{" "}
+                    Mutual connections
                   </button>
                 )}
 
                 <button
                   type="button"
-                  className="btn"
+                  className="secondary-button btn-compact"
                   onClick={() => openFollowList("followers")}
-                  style={{ padding: "8px 10px" }}
                 >
-                  <strong style={{ color: "var(--text)" }}>
+                  <strong style={{ color: "var(--text-h)", fontVariantNumeric: "tabular-nums" }}>
                     {typeof user.followersCount === "number"
                       ? user.followersCount
                       : Array.isArray(user.followers)
@@ -643,11 +646,10 @@ export default function Profile() {
 
                 <button
                   type="button"
-                  className="btn"
+                  className="secondary-button btn-compact"
                   onClick={() => openFollowList("following")}
-                  style={{ padding: "8px 10px" }}
                 >
-                  <strong style={{ color: "var(--text)" }}>
+                  <strong style={{ color: "var(--text-h)", fontVariantNumeric: "tabular-nums" }}>
                     {typeof user.followingCount === "number"
                       ? user.followingCount
                       : Array.isArray(user.following)
@@ -661,7 +663,7 @@ export default function Profile() {
               {readOnlyProfile ? (
                 <div className="actionsRow">
                   <button
-                    className={`btn ${isFollowing ? "" : "btnPrimary"}`}
+                    className={isFollowing ? "secondary-button btn-compact" : "primary-button btn-compact"}
                     type="button"
                     onClick={handleToggleFollow}
                     disabled={followBusy}
@@ -704,8 +706,8 @@ export default function Profile() {
 
             {isOwnProfile ? (
               <div style={{ marginTop: 20 }}>
-                <button className="btn btnDanger" type="button" onClick={openDeleteAccountModal}>
-                  Delete Account
+                <button className="danger-button btn-compact" type="button" onClick={openDeleteAccountModal}>
+                  Delete account
                 </button>
               </div>
             ) : null}
@@ -716,14 +718,16 @@ export default function Profile() {
               <h2 style={{ marginBottom: 0 }}>Posts</h2>
               {!readOnlyProfile ? (
                 <div className="actionsRow">
-                  <button className="btn btnPrimary" type="button" onClick={openCreatePostModal}>
-                    Create
+                  <button className="primary-button btn-compact" type="button" onClick={openCreatePostModal}>
+                    Create new
                   </button>
                 </div>
               ) : null}
             </div>
 
-            <div className="muted">Photos & videos you share</div>
+            <div className="muted" style={{ fontSize: "0.92rem" }}>
+              Photos and videos shared on your profile
+            </div>
 
             {postsLoading ? <div className="muted" style={{ marginTop: 12 }}>Loading posts...</div> : null}
             {postsError ? <div className="alert alertError" style={{ marginTop: 12 }}>{postsError}</div> : null}
@@ -760,7 +764,7 @@ export default function Profile() {
           <div className="modalCard">
             <div className="topbar" style={{ marginBottom: 10 }}>
               <h2 style={{ marginBottom: 0 }}>Create post</h2>
-              <button className="btn" type="button" onClick={closeCreatePostModal}>
+              <button className="secondary-button btn-compact" type="button" onClick={closeCreatePostModal}>
                 Close
               </button>
             </div>

@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 
-import { setAuthToken } from "../api";
 import { getProfile } from "../api/profile";
 import { deletePost, getPosts, toggleLike, updatePost } from "../api/posts";
+import AppHeader from "../components/AppHeader.jsx";
 import ConfirmDialog from "../components/ConfirmDialog";
 import CreatePostForm from "../components/CreatePostForm";
 import FeedPostCard from "../components/FeedPostCard";
@@ -12,7 +12,6 @@ import PostDetailsModal from "../components/PostDetailsModal";
 import UserSearch from "../components/UserSearch";
 
 export default function Feed() {
-  const navigate = useNavigate();
   const location = useLocation();
   const [me, setMe] = useState(null);
   const [posts, setPosts] = useState([]);
@@ -78,12 +77,6 @@ export default function Feed() {
       window.history.replaceState({}, document.title, location.pathname);
     }
   }, [location.state, loading, posts, location.pathname]);
-
-  function logout() {
-    localStorage.removeItem("token");
-    setAuthToken("");
-    navigate("/login", { replace: true });
-  }
 
   function handleOpenPostDetails(post) {
     setSelectedPost(post);
@@ -197,33 +190,26 @@ export default function Feed() {
 
   return (
     <div className="page">
-      <div className="topbar">
-        <h1>Feed Page</h1>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {me ? <NotificationsDropdown /> : null}
-          {me ? <UserSearch /> : null}
-          <button className="btn btnPrimary" type="button" onClick={openCreatePostModal}>
-            Create
-          </button>
-          <button className="btn" type="button" onClick={() => navigate("/profile")}>
-            My profile
-          </button>
-          <button className="btn" type="button" onClick={logout}>
-            Logout
-          </button>
-        </div>
-      </div>
+      <AppHeader
+        activePage="feed"
+        search={me ? <UserSearch /> : null}
+        notifications={me ? <NotificationsDropdown /> : null}
+      >
+        <button className="primary-button btn-compact" type="button" onClick={openCreatePostModal}>
+          Create new
+        </button>
+      </AppHeader>
 
-      <p>Welcome to the academic network</p>
+      <p className="feed-intro">Welcome to the TSI academic network.</p>
 
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "8px 0 14px" }}>
+      <div className="feed-filters">
         {CATEGORY_OPTIONS.map((opt) => {
           const active = selectedCategory === opt.value;
           return (
             <button
               key={opt.value}
               type="button"
-              className={active ? "btn btnPrimary" : "btn"}
+              className={active ? "filter-pill filter-pill--active" : "filter-pill"}
               onClick={() => setSelectedCategory(opt.value)}
             >
               {opt.label}
@@ -287,7 +273,7 @@ export default function Feed() {
           <div className="modalCard" style={{ textAlign: "left" }}>
             <div className="topbar" style={{ marginBottom: 12 }}>
               <h2 style={{ marginBottom: 0 }}>Create post</h2>
-              <button className="btn" type="button" onClick={closeCreatePostModal}>
+              <button className="secondary-button btn-compact" type="button" onClick={closeCreatePostModal}>
                 Close
               </button>
             </div>
@@ -304,7 +290,7 @@ export default function Feed() {
           <div className="modalCard" style={{ textAlign: "left" }}>
             <div className="topbar" style={{ marginBottom: 12 }}>
               <h2 style={{ marginBottom: 0 }}>Edit caption</h2>
-              <button className="btn" type="button" onClick={closeEditModal}>
+              <button className="secondary-button btn-compact" type="button" onClick={closeEditModal}>
                 Close
               </button>
             </div>
@@ -322,7 +308,7 @@ export default function Feed() {
                 padding: "10px 12px",
                 borderRadius: 10,
                 border: "1px solid var(--border)",
-                background: "var(--bg)",
+                background: "var(--surface)",
                 color: "var(--text-h)",
                 font: "16px/1.2 system-ui",
                 marginBottom: 12,
@@ -330,14 +316,19 @@ export default function Feed() {
             />
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <button
-                className="btn btnPrimary"
+                className="primary-button btn-compact"
                 type="button"
                 onClick={saveEdit}
                 disabled={editSaving || !canSaveEdit}
               >
                 {editSaving ? "Saving..." : "Save"}
               </button>
-              <button className="btn" type="button" onClick={closeEditModal} disabled={editSaving}>
+              <button
+                className="secondary-button btn-compact"
+                type="button"
+                onClick={closeEditModal}
+                disabled={editSaving}
+              >
                 Cancel
               </button>
             </div>
