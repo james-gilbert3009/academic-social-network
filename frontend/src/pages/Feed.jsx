@@ -1,6 +1,16 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { FaPlus } from "react-icons/fa";
+import {
+  FaPlus,
+  FaLayerGroup,
+  FaQuestionCircle,
+  FaFlask,
+  FaBullhorn,
+  FaBook,
+  FaCalendarAlt,
+  FaRegFileAlt,
+  FaChevronRight,
+} from "react-icons/fa";
 
 import { getProfile } from "../api/profile";
 import { deletePost, getPosts, toggleLike, updatePost } from "../api/posts";
@@ -12,6 +22,16 @@ import NotificationsDropdown from "../components/NotificationsDropdown.jsx";
 import PostDetailsModal from "../components/PostDetailsModal";
 import TsiOfficialFeed from "../components/TsiOfficialFeed.jsx";
 import UserSearch from "../components/UserSearch";
+
+const CATEGORY_ICON_BY_VALUE = {
+  all: FaLayerGroup,
+  question: FaQuestionCircle,
+  research: FaFlask,
+  announcement: FaBullhorn,
+  study: FaBook,
+  event: FaCalendarAlt,
+  general: FaRegFileAlt,
+};
 
 export default function Feed() {
   const location = useLocation();
@@ -30,6 +50,39 @@ export default function Feed() {
 
   const [postPendingDelete, setPostPendingDelete] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState("all");
+
+  /** True when the device supports hover (desktop-style); touch-first devices use tap-to-expand instead. */
+  const [prefersHover, setPrefersHover] = useState(() =>
+    typeof window !== "undefined" ? window.matchMedia("(hover: hover)").matches : false
+  );
+  const [categorySidebarHoverOpen, setCategorySidebarHoverOpen] = useState(false);
+  const [categorySidebarPinnedOpen, setCategorySidebarPinnedOpen] = useState(false);
+
+  const categorySidebarExpanded = categorySidebarHoverOpen || categorySidebarPinnedOpen;
+
+  useEffect(() => {
+    const mq = window.matchMedia("(hover: hover)");
+    function sync() {
+      setPrefersHover(mq.matches);
+    }
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+
+  function collapseCategorySidebar() {
+    setCategorySidebarHoverOpen(false);
+    setCategorySidebarPinnedOpen(false);
+  }
+
+  function handleCategorySelect(value) {
+    setSelectedCategory(value);
+    collapseCategorySidebar();
+  }
+
+  function toggleCategorySidebarPinned() {
+    setCategorySidebarPinnedOpen((prev) => !prev);
+  }
 
   const CATEGORY_OPTIONS = [
     { label: "All", value: "all" },
@@ -199,7 +252,8 @@ export default function Feed() {
         notifications={me ? <NotificationsDropdown /> : null}
       />
 
-      <div className="feedLayout">
+      <div className="feedViewportShell">
+        <div className="feedLayout">
         <div className="feedMainColumn">
           <div className="feedMainColumn__header">
             <button
@@ -212,52 +266,106 @@ export default function Feed() {
             </button>
           </div>
 
-          <div className="feed-filters">
-            {CATEGORY_OPTIONS.map((opt) => {
-              const active = selectedCategory === opt.value;
-              return (
+          <div className="feedContentWithCategorySidebar">
+            {!prefersHover && categorySidebarPinnedOpen ? (
+              <button
+                type="button"
+                className="categorySidebarBackdrop"
+                aria-label="Close categories"
+                onClick={collapseCategorySidebar}
+              />
+            ) : null}
+
+            <aside
+              className={
+                categorySidebarExpanded
+                  ? "categorySidebar categorySidebar--expanded"
+                  : "categorySidebar"
+              }
+              aria-label="Post categories"
+              aria-expanded={categorySidebarExpanded}
+              onMouseEnter={() => {
+                if (prefersHover) setCategorySidebarHoverOpen(true);
+              }}
+              onMouseLeave={() => {
+                if (prefersHover) setCategorySidebarHoverOpen(false);
+              }}
+            >
+              {CATEGORY_OPTIONS.map((opt) => {
+                const active = selectedCategory === opt.value;
+                const Icon = CATEGORY_ICON_BY_VALUE[opt.value];
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    className={active ? "categoryFilterButton categoryFilterButton--active" : "categoryFilterButton"}
+                    onClick={() => handleCategorySelect(opt.value)}
+                    title={opt.label}
+                    aria-label={opt.label}
+                    aria-pressed={active}
+                  >
+                    <span className="categoryFilterIcon">
+                      <Icon aria-hidden="true" />
+                    </span>
+                    <span className="categoryFilterText">{opt.label}</span>
+                  </button>
+                );
+              })}
+
+              {!prefersHover ? (
                 <button
-                  key={opt.value}
                   type="button"
-                  className={active ? "filter-pill filter-pill--active" : "filter-pill"}
-                  onClick={() => setSelectedCategory(opt.value)}
+                  className="categorySidebarExpandToggle"
+                  onClick={toggleCategorySidebarPinned}
+                  aria-expanded={categorySidebarPinnedOpen}
+                  title={categorySidebarPinnedOpen ? "Collapse categories" : "Expand categories"}
+                  aria-label={categorySidebarPinnedOpen ? "Collapse categories" : "Expand categories"}
                 >
-                  {opt.label}
+                  <FaChevronRight
+                    aria-hidden="true"
+                    className={
+                      categorySidebarPinnedOpen
+                        ? "categorySidebarExpandToggle__icon categorySidebarExpandToggle__icon--open"
+                        : "categorySidebarExpandToggle__icon"
+                    }
+                  />
                 </button>
-              );
-            })}
-          </div>
+              ) : null}
+            </aside>
 
-          {loading ? <div className="muted">Loading posts...</div> : null}
-          {error ? <div className="alert alertError">{error}</div> : null}
+            <div className="platformPostsArea">
+              {loading ? <div className="muted">Loading posts...</div> : null}
+              {error ? <div className="alert alertError">{error}</div> : null}
 
-          {!loading && !error && posts.length === 0 ? (
-            <section className="card">
-              <div className="emptyState">
-                No posts yet. Be the first to share something!
+              {!loading && !error && posts.length === 0 ? (
+                <section className="card">
+                  <div className="emptyState">
+                    No posts yet. Be the first to share something!
+                  </div>
+                </section>
+              ) : null}
+
+              {!loading && !error && posts.length > 0 && filteredPosts.length === 0 ? (
+                <section className="card">
+                  <div className="emptyState">No posts found for this category.</div>
+                </section>
+              ) : null}
+
+              <div className="platformPostsScroll">
+                <div className="feedStack">
+                  {filteredPosts.map((post) => (
+                    <FeedPostCard
+                      key={post._id}
+                      post={post}
+                      currentUser={me}
+                      onLike={handleLike}
+                      onEdit={handleEdit}
+                      onDelete={requestDeletePost}
+                      onOpenDetails={handleOpenPostDetails}
+                    />
+                  ))}
+                </div>
               </div>
-            </section>
-          ) : null}
-
-          {!loading && !error && posts.length > 0 && filteredPosts.length === 0 ? (
-            <section className="card">
-              <div className="emptyState">No posts found for this category.</div>
-            </section>
-          ) : null}
-
-          <div className="platformPostsScroll">
-            <div className="feedStack">
-              {filteredPosts.map((post) => (
-                <FeedPostCard
-                  key={post._id}
-                  post={post}
-                  currentUser={me}
-                  onLike={handleLike}
-                  onEdit={handleEdit}
-                  onDelete={requestDeletePost}
-                  onOpenDetails={handleOpenPostDetails}
-                />
-              ))}
             </div>
           </div>
         </div>
@@ -265,6 +373,7 @@ export default function Feed() {
         <aside className="feedSidebarColumn">
           <TsiOfficialFeed />
         </aside>
+        </div>
       </div>
 
       <ConfirmDialog

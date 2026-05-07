@@ -61,17 +61,286 @@
   margin: 0;
 }
 
-/* Platform user posts only — scrollbar stays on this list (desktop) */
-.platformPostsScroll {
-  max-height: calc(100vh - 250px);
+/* Feed: category sidebar overlays feed (does not resize main column) */
+.feedContentWithCategorySidebar {
+  --category-sidebar-compact: 56px;
+  --category-sidebar-expanded: 220px;
+  position: relative;
+  min-width: 0;
+  flex: 1;
+}
+
+.categorySidebarBackdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: rgba(15, 23, 42, 0.14);
+  cursor: pointer;
+}
+
+.categorySidebar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 12;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: var(--category-sidebar-compact);
+  max-height: min(78vh, calc(100dvh - 200px));
+  overflow-x: hidden;
   overflow-y: auto;
-  padding-right: 8px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+  padding: 6px 8px 6px 6px;
+  box-sizing: border-box;
+  border-radius: 0 12px 12px 0;
+  border: 1px solid var(--border);
+  border-left: none;
+  background: color-mix(in oklab, var(--surface) 96%, var(--bg));
+  box-shadow: 2px 0 14px rgba(15, 23, 42, 0.08);
+  transition: width 0.28s ease;
+}
+
+.categorySidebar--expanded {
+  width: var(--category-sidebar-expanded);
+}
+
+.categorySidebarExpandToggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 100%;
+  min-height: 40px;
+  margin-top: 2px;
+  padding: 8px;
+  border-radius: 10px;
+  border: 1px dashed color-mix(in oklab, var(--border) 85%, var(--muted));
+  background: color-mix(in oklab, var(--surface) 90%, var(--bg));
+  color: var(--text-h);
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.categorySidebarExpandToggle:hover {
+  border-color: color-mix(in oklab, var(--primary) 35%, var(--border));
+  background: color-mix(in oklab, var(--surface) 82%, var(--bg));
+}
+
+.categorySidebarExpandToggle__icon {
+  font-size: 0.95rem;
+  transition: transform 0.25s ease;
+}
+
+.categorySidebarExpandToggle__icon--open {
+  transform: rotate(180deg);
+}
+
+.categoryFilterButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: color-mix(in oklab, var(--surface) 88%, var(--bg));
+  color: var(--text-h);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 550;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+  box-sizing: border-box;
+}
+
+.categoryFilterButton:hover {
+  border-color: color-mix(in oklab, var(--primary) 35%, var(--border));
+}
+
+.categoryFilterButton--active {
+  background: var(--primary);
+  border-color: var(--primary-dark);
+  color: #fff;
+  box-shadow: 0 1px 3px rgba(0, 53, 102, 0.35);
+}
+
+.categoryFilterButton--active:hover {
+  border-color: var(--primary-dark);
+}
+
+.categoryFilterIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  font-size: 1rem;
+}
+
+/* react-icons SVGs default to inline and can sit off vertical center */
+.categoryFilterIcon svg {
+  display: block;
+}
+
+.categoryFilterButton--active .categoryFilterIcon {
+  color: #fff;
+}
+
+.categoryFilterText {
+  flex: 1 1 auto;
+  min-width: 0;
+  opacity: 0;
+  max-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  transition:
+    opacity 0.22s ease,
+    max-width 0.28s ease;
+}
+
+/* Compact rail: label must not reserve flex min-content width (was shifting icons right) */
+.categorySidebar:not(.categorySidebar--expanded) .categoryFilterButton {
+  justify-content: center;
+  gap: 0;
+  padding-inline: 8px;
+}
+
+.categorySidebar:not(.categorySidebar--expanded) .categoryFilterText {
+  flex: 0 0 0;
+  width: 0;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.categorySidebar--expanded .categoryFilterButton {
+  justify-content: flex-start;
+  gap: 10px;
+  padding-inline: 12px;
+}
+
+.categorySidebar--expanded .categoryFilterText {
+  opacity: 1;
+  max-width: 200px;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.platformPostsArea {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  padding-left: var(--category-sidebar-compact);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
 @media (max-width: 768px) {
+  .feedContentWithCategorySidebar {
+    --category-sidebar-compact: 52px;
+    --category-sidebar-expanded: 200px;
+  }
+
+  .categorySidebar--expanded .categoryFilterText {
+    max-width: 180px;
+  }
+}
+
+/* Feed page (desktop two-column): fill viewport; only posts list scrolls vertically */
+.platformPostsScroll {
+  padding-right: 8px;
+}
+
+@media (min-width: 901px) {
+  html:has(.feedViewportShell),
+  body:has(.feedViewportShell) {
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  body:has(.feedViewportShell) #root {
+    height: 100%;
+    min-height: 0;
+    max-height: 100dvh;
+    overflow: hidden;
+  }
+
+  /* Stretch feed column below navbar only — avoid overflow:hidden on .page so app-header negative margins stay visible */
+  .page:has(.feedViewportShell) {
+    flex: 1;
+    min-height: 0;
+    height: 100%;
+    max-height: 100dvh;
+    box-sizing: border-box;
+  }
+
+  .feedViewportShell {
+    flex: 1;
+    min-height: 0;
+    min-width: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .feedViewportShell .feedLayout {
+    flex: 1;
+    min-height: 0;
+    align-items: stretch;
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .feedViewportShell .feedMainColumn {
+    min-height: 0;
+    min-width: 0;
+  }
+
+  .feedViewportShell .feedSidebarColumn {
+    min-height: 0;
+  }
+
+  .feedViewportShell .feedContentWithCategorySidebar {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .feedViewportShell .platformPostsArea {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .feedViewportShell .platformPostsScroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-gutter: stable;
+  }
+}
+
+@media (max-width: 900px) {
   .platformPostsScroll {
-    max-height: none;
-    overflow-y: visible;
     padding-right: 0;
   }
 }
@@ -1133,7 +1402,8 @@
 
 .profilePostCard__media {
   width: 100%;
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
   background: var(--code-bg);
   border-bottom: 1px solid var(--border);
 }
@@ -1643,6 +1913,91 @@
   text-align: left;
 }
 
+.createPostCropModal {
+  max-width: 820px;
+  width: min(92vw, 820px);
+  max-height: 90vh;
+  overflow-y: auto;
+  text-align: left;
+}
+
+.createPostCropModal__stage {
+  position: relative;
+  width: 100%;
+  height: 420px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #0f172a;
+}
+
+.createPostCropModal__aspectRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.createPostCropModal__aspectLabel {
+  font-size: 0.82rem;
+  font-weight: 650;
+  color: var(--muted);
+  margin-right: 4px;
+}
+
+.createPostCropModal__aspectBtn {
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: color-mix(in oklab, var(--surface) 92%, var(--bg));
+  color: var(--text-h);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.createPostCropModal__aspectBtn:hover:not(:disabled) {
+  border-color: color-mix(in oklab, var(--primary) 35%, var(--border));
+}
+
+.createPostCropModal__aspectBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.createPostCropModal__aspectBtn--active {
+  background: color-mix(in oklab, var(--primary) 18%, var(--surface));
+  border-color: color-mix(in oklab, var(--primary) 45%, var(--border));
+  color: var(--primary-dark);
+}
+
+.createPostForm__preview {
+  max-width: 520px;
+  margin: 0 auto;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--code-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  max-height: min(42vh, 380px);
+}
+
+.createPostForm__previewImg {
+  display: block;
+  max-width: 100%;
+  max-height: min(42vh, 380px);
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
 /* Shared empty states (feed, profile posts, modal comments) */
 .emptyState {
   text-align: center;
@@ -1831,7 +2186,8 @@
 /* Post image in details modal: fit inside modal width/height, show full image (no crop) */
 .postDetailsModalImageWrap {
   width: 100%;
-  max-height: min(52vh, 520px);
+  max-height: min(65vh, 600px);
+  min-height: 120px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1845,7 +2201,7 @@
 
 .postDetailsModalImageWrap img {
   max-width: 100%;
-  max-height: min(52vh, 520px);
+  max-height: min(65vh, 600px);
   width: auto;
   height: auto;
   object-fit: contain;
@@ -1856,7 +2212,7 @@
 .feedStack {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 8px;
   max-width: 640px;
   margin: 0 auto;
   width: 100%;
@@ -1871,13 +2227,13 @@
 
 .feedPostCard {
   text-align: left;
-  padding: 14px 14px 12px;
+  padding: 12px 12px 10px;
   border-radius: 14px;
 }
 
 @media (max-width: 640px) {
   .feedPostCard {
-    padding: 12px 12px 10px;
+    padding: 10px 10px 8px;
     border-radius: 12px;
   }
 }
@@ -1960,8 +2316,29 @@
   color: var(--text-h);
   font-size: 0.95rem;
   line-height: 1.42;
-  white-space: pre-wrap;
   word-break: break-word;
+}
+
+.feedPostCard__bodyText {
+  white-space: pre-wrap;
+}
+
+.feedPostCard__captionToggle {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  color: var(--primary);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.feedPostCard__captionToggle:hover {
+  color: var(--primary-dark);
 }
 
 .feedPostCard__body--empty {
@@ -1977,11 +2354,32 @@
   background: var(--code-bg);
 }
 
-.feedPostCard__media img {
+.feedPostCard__imageWrap {
   width: 100%;
-  max-height: min(48vh, 380px);
+  max-height: 420px;
+  overflow: hidden;
+  background: color-mix(in oklab, var(--code-bg) 92%, var(--border) 8%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.feedPostCard__imageWrap .feedPostCard__image {
+  width: 100%;
+  height: auto;
+  max-height: 420px;
   object-fit: contain;
   display: block;
+}
+
+@media (max-width: 640px) {
+  .feedPostCard__imageWrap {
+    max-height: 320px;
+  }
+
+  .feedPostCard__imageWrap .feedPostCard__image {
+    max-height: 320px;
+  }
 }
 
 .feedPostCard__toolbar {

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import timeAgo from "../utils/timeAgo";
 import RoleBadge from "./RoleBadge";
@@ -40,6 +41,15 @@ function uploadUrl(path) {
   return path;
 }
 
+/** Grapheme-safe-ish truncation using code points (better than raw substring for many emoji). */
+function truncateCaptionChars(text, maxChars) {
+  const chars = Array.from(text);
+  if (chars.length <= maxChars) return text;
+  return chars.slice(0, maxChars).join("");
+}
+
+const CAPTION_PREVIEW_CHARS = 260;
+
 function hasLiked(post, currentUser) {
   if (!currentUser?._id || !Array.isArray(post?.likes)) return false;
   return post.likes.some((id) => {
@@ -57,6 +67,7 @@ export default function FeedPostCard({
   onOpenDetails,
 }) {
   const navigate = useNavigate();
+  const [captionExpanded, setCaptionExpanded] = useState(false);
   const author = post.author || {};
   const authorId = typeof post.author === "object" ? post.author?._id : post.author;
   const isOwner = currentUser?._id && authorId && String(currentUser._id) === String(authorId);
@@ -70,7 +81,11 @@ export default function FeedPostCard({
   const liked = hasLiked(post, currentUser);
   const previewComments = (post.comments || []).slice(0, 2);
 
-  const caption = (post.content || "").trim();
+  const fullCaption = post.content ?? "";
+  const captionTrimmed = fullCaption.trim();
+  const captionChars = Array.from(fullCaption);
+  const captionTooLong = captionChars.length > CAPTION_PREVIEW_CHARS;
+  const captionPreview = captionTooLong ? truncateCaptionChars(fullCaption, CAPTION_PREVIEW_CHARS) : fullCaption;
   const hasImage = Boolean(post.image && String(post.image).trim());
   const timeLabel = timeAgo(post.createdAt);
   const authorProfileId = authorId ? String(authorId) : "";
@@ -130,15 +145,47 @@ export default function FeedPostCard({
         </span>
       </div>
 
-      {caption ? (
-        <div className="feedPostCard__body">{post.content}</div>
+      {captionTrimmed ? (
+        <div className="feedPostCard__body">
+          {captionTooLong && !captionExpanded ? (
+            <>
+              <span className="feedPostCard__bodyText">{captionPreview}</span>
+              …{" "}
+              <button
+                type="button"
+                className="feedPostCard__captionToggle"
+                onClick={() => setCaptionExpanded(true)}
+              >
+                See more…
+              </button>
+            </>
+          ) : (
+            <>
+              <span className="feedPostCard__bodyText">{fullCaption}</span>
+              {captionTooLong && captionExpanded ? (
+                <>
+                  {" "}
+                  <button
+                    type="button"
+                    className="feedPostCard__captionToggle"
+                    onClick={() => setCaptionExpanded(false)}
+                  >
+                    See less
+                  </button>
+                </>
+              ) : null}
+            </>
+          )}
+        </div>
       ) : !hasImage ? (
         <div className="feedPostCard__body feedPostCard__body--empty">No caption</div>
       ) : null}
 
       {post.image ? (
         <div className="feedPostCard__media">
-          <img src={uploadUrl(post.image)} alt="" />
+          <div className="feedPostCard__imageWrap">
+            <img className="feedPostCard__image" src={uploadUrl(post.image)} alt="" />
+          </div>
         </div>
       ) : null}
 
