@@ -96,45 +96,69 @@ export default function FollowListModal({
               const isBusy = busySet.has(String(u?._id));
 
               return (
-                <button
+                <div
                   key={u._id}
-                  type="button"
-                  className="btn"
-                  onClick={() => handleOpenProfile(u._id)}
+                  className="followListModalUserRow"
                   style={{
                     display: "flex",
                     alignItems: "center",
                     gap: 12,
-                    textAlign: "left",
-                    padding: 12,
                     width: "100%",
+                    boxSizing: "border-box",
+                    padding: 12,
+                    borderRadius: 10,
+                    border: "1px solid var(--border)",
+                    background: "var(--surface)",
                   }}
                 >
-                  <img
-                    src={avatar}
-                    alt={u?.name || "User"}
+                  <button
+                    type="button"
+                    onClick={() => handleOpenProfile(u._id)}
+                    aria-label={`Open ${u?.name || "User"} profile`}
                     style={{
-                      width: 44,
-                      height: 44,
-                      borderRadius: 999,
-                      objectFit: "cover",
-                      border: "1px solid var(--border)",
-                      flexShrink: 0,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                      flex: 1,
+                      minWidth: 0,
+                      textAlign: "left",
+                      padding: 0,
+                      margin: 0,
+                      border: 0,
+                      background: "transparent",
+                      color: "inherit",
+                      font: "inherit",
+                      cursor: "pointer",
+                      borderRadius: 8,
                     }}
-                  />
+                  >
+                    <img
+                      src={avatar}
+                      alt=""
+                      aria-hidden="true"
+                      style={{
+                        width: 44,
+                        height: 44,
+                        borderRadius: 999,
+                        objectFit: "cover",
+                        border: "1px solid var(--border)",
+                        flexShrink: 0,
+                      }}
+                    />
 
-                  <div style={{ minWidth: 0, flex: 1 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                      <div style={{ fontWeight: 650, color: "var(--text-h)" }}>
-                        {u?.name || "User"}
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                        <div style={{ fontWeight: 650, color: "var(--text-h)" }}>
+                          {u?.name || "User"}
+                        </div>
+                        <RoleBadge role={u?.role} />
                       </div>
-                      <RoleBadge role={u?.role} />
+                      <div className="muted" style={{ marginTop: 2 }}>
+                        @{u?.username || "unknown"}
+                        {sub ? <span> • {sub}</span> : null}
+                      </div>
                     </div>
-                    <div className="muted" style={{ marginTop: 2 }}>
-                      @{u?.username || "unknown"}
-                      {sub ? <span> • {sub}</span> : null}
-                    </div>
-                  </div>
+                  </button>
 
                   {showAction ? (
                     <button
@@ -142,8 +166,7 @@ export default function FollowListModal({
                       className={`btn ${label === "Connect" || label === "Connect Back" ? "btnPrimary" : ""}`}
                       disabled={isBusy}
                       aria-busy={isBusy ? "true" : "false"}
-                      onClick={(e) => {
-                        e.stopPropagation();
+                      onClick={() => {
                         onToggleFollow?.(u._id, label);
                       }}
                       style={{ flexShrink: 0 }}
@@ -151,7 +174,7 @@ export default function FollowListModal({
                       {isBusy ? "..." : label}
                     </button>
                   ) : null}
-                </button>
+                </div>
               );
             })}
           </div>

@@ -59,10 +59,16 @@ export default function Feed() {
   const [prefersHover, setPrefersHover] = useState(() =>
     typeof window !== "undefined" ? window.matchMedia("(hover: hover)").matches : false
   );
+  /** Viewport ≤900px: category rail is a fixed overlay drawer, not in-flow beside the feed. */
+  const [isMobileFeedLayout, setIsMobileFeedLayout] = useState(() =>
+    typeof window !== "undefined" ? window.matchMedia("(max-width: 900px)").matches : false
+  );
   const [categorySidebarHoverOpen, setCategorySidebarHoverOpen] = useState(false);
   const [categorySidebarPinnedOpen, setCategorySidebarPinnedOpen] = useState(false);
+  const [activeMobileFeedTab, setActiveMobileFeedTab] = useState("feed");
 
-  const categorySidebarExpanded = categorySidebarHoverOpen || categorySidebarPinnedOpen;
+  const categorySidebarExpanded =
+    (prefersHover && !isMobileFeedLayout && categorySidebarHoverOpen) || categorySidebarPinnedOpen;
 
   useEffect(() => {
     const mq = window.matchMedia("(hover: hover)");
@@ -73,6 +79,30 @@ export default function Feed() {
     mq.addEventListener("change", sync);
     return () => mq.removeEventListener("change", sync);
   }, []);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 900px)");
+    function sync() {
+      setIsMobileFeedLayout(mq.matches);
+      if (!mq.matches) {
+        setCategorySidebarPinnedOpen(false);
+        setCategorySidebarHoverOpen(false);
+        setActiveMobileFeedTab("feed");
+      }
+    }
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+
+  useEffect(() => {
+    if (!isMobileFeedLayout || !categorySidebarPinnedOpen) return;
+    function onKeyDown(e) {
+      if (e.key === "Escape") collapseCategorySidebar();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isMobileFeedLayout, categorySidebarPinnedOpen]);
 
   function collapseCategorySidebar() {
     setCategorySidebarHoverOpen(false);
@@ -86,6 +116,11 @@ export default function Feed() {
 
   function toggleCategorySidebarPinned() {
     setCategorySidebarPinnedOpen((prev) => !prev);
+  }
+
+  function handleMobileFeedTab(tab) {
+    collapseCategorySidebar();
+    setActiveMobileFeedTab(tab);
   }
 
   const CATEGORY_OPTIONS = [
@@ -371,8 +406,176 @@ export default function Feed() {
           (p) => String(p?.category || "general").toLowerCase() === selectedCategory
         );
 
+  const feedColumnHeader = (
+    <div className="feedMainColumn__header">
+      <div className="feedMainColumn__headerActions">
+        {isMobileFeedLayout ? (
+          <button
+            type="button"
+            className="secondary-button btn-compact btnWithIcon feedCategoryDrawerToggle"
+            onClick={toggleCategorySidebarPinned}
+            aria-expanded={categorySidebarPinnedOpen}
+            aria-controls="feed-category-sidebar"
+            aria-label="Post categories"
+          >
+            <FaLayerGroup aria-hidden="true" />
+            Categories
+          </button>
+        ) : null}
+        <button
+          className="primary-button btn-compact btnWithIcon"
+          type="button"
+          onClick={openCreatePostModal}
+        >
+          <FaPlus aria-hidden="true" />
+          Create new
+        </button>
+      </div>
+    </div>
+  );
+
+  const feedCategoryRail = (
+    <>
+      {((isMobileFeedLayout && categorySidebarPinnedOpen) ||
+        (!isMobileFeedLayout && !prefersHover && categorySidebarPinnedOpen)) ? (
+        <button
+          type="button"
+          className="categorySidebarBackdrop"
+          aria-label="Close categories"
+          onClick={collapseCategorySidebar}
+        />
+      ) : null}
+
+      <aside
+        id="feed-category-sidebar"
+        className={
+          categorySidebarExpanded
+            ? "categorySidebar categorySidebar--expanded"
+            : "categorySidebar"
+        }
+        aria-label="Post categories"
+        aria-expanded={categorySidebarExpanded}
+        {...(isMobileFeedLayout && categorySidebarPinnedOpen
+          ? { role: "dialog", "aria-modal": "true" }
+          : {})}
+        onMouseEnter={() => {
+          if (prefersHover && !isMobileFeedLayout) setCategorySidebarHoverOpen(true);
+        }}
+        onMouseLeave={() => {
+          if (prefersHover && !isMobileFeedLayout) setCategorySidebarHoverOpen(false);
+        }}
+      >
+        {CATEGORY_OPTIONS.map((opt) => {
+          const active = selectedCategory === opt.value;
+          const Icon = CATEGORY_ICON_BY_VALUE[opt.value];
+          return (
+            <button
+              key={opt.value}
+              type="button"
+              className={active ? "categoryFilterButton categoryFilterButton--active" : "categoryFilterButton"}
+              onClick={() => handleCategorySelect(opt.value)}
+              title={opt.label}
+              aria-label={opt.label}
+              aria-pressed={active}
+            >
+              <span className="categoryFilterIcon">
+                <Icon aria-hidden="true" />
+              </span>
+              <span className="categoryFilterText">{opt.label}</span>
+            </button>
+          );
+        })}
+
+        {!prefersHover || isMobileFeedLayout ? (
+          <button
+            type="button"
+            className="categorySidebarExpandToggle"
+            onClick={toggleCategorySidebarPinned}
+            aria-expanded={categorySidebarPinnedOpen}
+            title={categorySidebarPinnedOpen ? "Collapse categories" : "Expand categories"}
+            aria-label={categorySidebarPinnedOpen ? "Collapse categories" : "Expand categories"}
+          >
+            <FaChevronRight
+              aria-hidden="true"
+              className={
+                categorySidebarPinnedOpen
+                  ? "categorySidebarExpandToggle__icon categorySidebarExpandToggle__icon--open"
+                  : "categorySidebarExpandToggle__icon"
+              }
+            />
+          </button>
+        ) : null}
+      </aside>
+    </>
+  );
+
+  const feedPostsShell = (
+    <div className="feedContentWithCategorySidebar">
+      {!isMobileFeedLayout ? feedCategoryRail : null}
+
+      <div className="platformPostsArea">
+        {loading ? <div className="muted">Loading posts...</div> : null}
+        {error ? <div className="alert alertError">{error}</div> : null}
+
+        {!loading && !error && posts.length === 0 ? (
+          <section className="card">
+            <div className="emptyState">
+              No posts yet. Be the first to share something!
+            </div>
+          </section>
+        ) : null}
+
+        {!loading && !error && posts.length > 0 && filteredPosts.length === 0 ? (
+          <section className="card">
+            <div className="emptyState">No posts found for this category.</div>
+          </section>
+        ) : null}
+
+        <div className="platformPostsScroll">
+          <div className="feedStack">
+            {filteredPosts.map((post) => (
+              <FeedPostCard
+                key={post._id}
+                post={post}
+                currentUser={me}
+                actionsMenuOpen={Boolean(openPostActionsId && String(openPostActionsId) === String(post._id))}
+                onToggleActionsMenu={() =>
+                  setOpenPostActionsId((prev) =>
+                    prev && String(prev) === String(post._id) ? null : post._id
+                  )
+                }
+                onCloseActionsMenu={() => setOpenPostActionsId(null)}
+                followBusy={Boolean(
+                  followBusyByUserId[
+                    String(
+                      post?.author && typeof post.author === "object" && post.author._id
+                        ? post.author._id
+                        : post?.author || ""
+                    )
+                  ]
+                )}
+                onToggleFollow={handleToggleFollowFromFeed}
+                onLike={handleLike}
+                onEdit={handleEdit}
+                onDelete={requestDeletePost}
+                onOpenDetails={handleOpenPostDetails}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const feedMainColumn = (
+    <div className="feedMainColumn">
+      {feedColumnHeader}
+      {feedPostsShell}
+    </div>
+  );
+
   return (
-    <div className="page">
+    <div className="page feedPage">
       <AppHeader
         activePage="feed"
         currentUser={me}
@@ -381,145 +584,71 @@ export default function Feed() {
       />
 
       <div className="feedViewportShell">
-        <div className="feedLayout">
-        <div className="feedMainColumn">
-          <div className="feedMainColumn__header">
-            <button
-              className="primary-button btn-compact btnWithIcon"
-              type="button"
-              onClick={openCreatePostModal}
-            >
-              <FaPlus aria-hidden="true" />
-              Create new
-            </button>
-          </div>
-
-          <div className="feedContentWithCategorySidebar">
-            {!prefersHover && categorySidebarPinnedOpen ? (
-              <button
-                type="button"
-                className="categorySidebarBackdrop"
-                aria-label="Close categories"
-                onClick={collapseCategorySidebar}
-              />
-            ) : null}
-
-            <aside
-              className={
-                categorySidebarExpanded
-                  ? "categorySidebar categorySidebar--expanded"
-                  : "categorySidebar"
-              }
-              aria-label="Post categories"
-              aria-expanded={categorySidebarExpanded}
-              onMouseEnter={() => {
-                if (prefersHover) setCategorySidebarHoverOpen(true);
-              }}
-              onMouseLeave={() => {
-                if (prefersHover) setCategorySidebarHoverOpen(false);
-              }}
-            >
-              {CATEGORY_OPTIONS.map((opt) => {
-                const active = selectedCategory === opt.value;
-                const Icon = CATEGORY_ICON_BY_VALUE[opt.value];
-                return (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    className={active ? "categoryFilterButton categoryFilterButton--active" : "categoryFilterButton"}
-                    onClick={() => handleCategorySelect(opt.value)}
-                    title={opt.label}
-                    aria-label={opt.label}
-                    aria-pressed={active}
+        <div
+          className={isMobileFeedLayout ? "feedLayout feedLayout--mobileTabs" : "feedLayout"}
+        >
+          {isMobileFeedLayout ? (
+            <div className="feedMobileTabStack">
+              {activeMobileFeedTab === "feed" ? feedColumnHeader : null}
+              {feedCategoryRail}
+              <div className="feedMobileSliderClip">
+                <div className="mobileFeedSlider" data-active-tab={activeMobileFeedTab}>
+                  <section
+                    className="mobileFeedSlide mobileFeedSlide--feed"
+                    aria-hidden={activeMobileFeedTab !== "feed"}
                   >
-                    <span className="categoryFilterIcon">
-                      <Icon aria-hidden="true" />
-                    </span>
-                    <span className="categoryFilterText">{opt.label}</span>
-                  </button>
-                );
-              })}
-
-              {!prefersHover ? (
-                <button
-                  type="button"
-                  className="categorySidebarExpandToggle"
-                  onClick={toggleCategorySidebarPinned}
-                  aria-expanded={categorySidebarPinnedOpen}
-                  title={categorySidebarPinnedOpen ? "Collapse categories" : "Expand categories"}
-                  aria-label={categorySidebarPinnedOpen ? "Collapse categories" : "Expand categories"}
-                >
-                  <FaChevronRight
-                    aria-hidden="true"
-                    className={
-                      categorySidebarPinnedOpen
-                        ? "categorySidebarExpandToggle__icon categorySidebarExpandToggle__icon--open"
-                        : "categorySidebarExpandToggle__icon"
-                    }
-                  />
-                </button>
-              ) : null}
-            </aside>
-
-            <div className="platformPostsArea">
-              {loading ? <div className="muted">Loading posts...</div> : null}
-              {error ? <div className="alert alertError">{error}</div> : null}
-
-              {!loading && !error && posts.length === 0 ? (
-                <section className="card">
-                  <div className="emptyState">
-                    No posts yet. Be the first to share something!
-                  </div>
-                </section>
-              ) : null}
-
-              {!loading && !error && posts.length > 0 && filteredPosts.length === 0 ? (
-                <section className="card">
-                  <div className="emptyState">No posts found for this category.</div>
-                </section>
-              ) : null}
-
-              <div className="platformPostsScroll">
-                <div className="feedStack">
-                  {filteredPosts.map((post) => (
-                    <FeedPostCard
-                      key={post._id}
-                      post={post}
-                      currentUser={me}
-                      actionsMenuOpen={Boolean(openPostActionsId && String(openPostActionsId) === String(post._id))}
-                      onToggleActionsMenu={() =>
-                        setOpenPostActionsId((prev) =>
-                          prev && String(prev) === String(post._id) ? null : post._id
-                        )
-                      }
-                      onCloseActionsMenu={() => setOpenPostActionsId(null)}
-                      followBusy={Boolean(
-                        followBusyByUserId[
-                          String(
-                            post?.author && typeof post.author === "object" && post.author._id
-                              ? post.author._id
-                              : post?.author || ""
-                          )
-                        ]
-                      )}
-                      onToggleFollow={handleToggleFollowFromFeed}
-                      onLike={handleLike}
-                      onEdit={handleEdit}
-                      onDelete={requestDeletePost}
-                      onOpenDetails={handleOpenPostDetails}
-                    />
-                  ))}
+                    <div className="feedMainColumn feedMainColumn--mobileSlideInner">
+                      {feedPostsShell}
+                    </div>
+                  </section>
+                  <section
+                    className="mobileFeedSlide mobileFeedSlide--tsi"
+                    aria-hidden={activeMobileFeedTab !== "tsi"}
+                  >
+                    <TsiOfficialFeed />
+                  </section>
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-
-        <aside className="feedSidebarColumn">
-          <TsiOfficialFeed />
-        </aside>
+          ) : (
+            <>
+              {feedMainColumn}
+              <aside className="feedSidebarColumn">
+                <TsiOfficialFeed />
+              </aside>
+            </>
+          )}
         </div>
       </div>
+
+      {isMobileFeedLayout ? (
+        <nav className="mobileFeedBottomNav" aria-label="Feed navigation">
+          <button
+            type="button"
+            className={
+              activeMobileFeedTab === "feed"
+                ? "mobileFeedBottomNav__btn mobileFeedBottomNav__btn--active"
+                : "mobileFeedBottomNav__btn"
+            }
+            aria-pressed={activeMobileFeedTab === "feed"}
+            onClick={() => handleMobileFeedTab("feed")}
+          >
+            Feed
+          </button>
+          <button
+            type="button"
+            className={
+              activeMobileFeedTab === "tsi"
+                ? "mobileFeedBottomNav__btn mobileFeedBottomNav__btn--active"
+                : "mobileFeedBottomNav__btn"
+            }
+            aria-pressed={activeMobileFeedTab === "tsi"}
+            onClick={() => handleMobileFeedTab("tsi")}
+          >
+            TSI RSS Feed
+          </button>
+        </nav>
+      ) : null}
 
       <ConfirmDialog
         open={Boolean(postPendingDelete)}

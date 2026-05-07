@@ -156,53 +156,62 @@ export default function FeedPostCard({
             <img className="feedPostCard__avatar" src={avatarSrc} alt="" />
           </button>
 
-          <button
-            type="button"
-            className="feedPostAuthorMeta"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              if (!authorProfileId) return;
-              navigate(`/profile/${authorProfileId}`);
-            }}
-            style={{ cursor: authorProfileId ? "pointer" : "default" }}
-            aria-label={`Open ${author.name || author.username || "member"} profile`}
+          <div
+            className={
+              canShowConnect
+                ? "feedPostAuthorMeta feedPostAuthorMeta--hasConnect"
+                : "feedPostAuthorMeta"
+            }
           >
-            <div className="feedPostAuthorTopLine">
-              <span className="feedPostAuthorName">{author.name || "Someone"}</span>
-              <span className="feedPostRoleBadge">
-                <RoleBadge role={author?.role} />
-              </span>
-              {canShowConnect ? (
-                <button
-                  type="button"
-                  className={
-                    isFriend
-                      ? "feedPostRelationshipButton feedPostRelationshipButton--connected"
-                      : isFollowing
-                        ? "feedPostRelationshipButton feedPostRelationshipButton--following"
-                        : "feedPostRelationshipButton"
-                  }
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onToggleFollow?.(author);
-                  }}
-                  disabled={Boolean(followBusy)}
-                  aria-label={`Connect with ${author.name || author.username || "member"}`}
-                  title={connectLabel}
-                >
-                  {shouldShowPlusIcon ? <FaPlus aria-hidden="true" className="feedPostRelationshipButton__icon" /> : null}
-                  <span className="feedPostRelationshipButton__text feedPostRelationshipButton__text--full">
-                    {connectLabel}
-                  </span>
-                </button>
-              ) : null}
-            </div>
+            <button
+              type="button"
+              className="feedPostAuthorMetaProfile"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (!authorProfileId) return;
+                navigate(`/profile/${authorProfileId}`);
+              }}
+              style={{ cursor: authorProfileId ? "pointer" : "default" }}
+              aria-label={`Open ${author.name || author.username || "member"} profile`}
+            >
+              <div className="feedPostAuthorTopLine">
+                <span className="feedPostAuthorName">{author.name || "Someone"}</span>
+                <span className="feedPostRoleBadge">
+                  <RoleBadge role={author?.role} />
+                </span>
+              </div>
 
-            <div className="feedPostAuthorUsername">@{author.username || "user"}</div>
-            {timeLabel ? <div className="feedPostAuthorDate">{timeLabel}</div> : null}
-          </button>
+              <div className="feedPostAuthorUsername">@{author.username || "user"}</div>
+              {timeLabel ? <div className="feedPostAuthorDate">{timeLabel}</div> : null}
+            </button>
+
+            {canShowConnect ? (
+              <button
+                type="button"
+                className={
+                  isFriend
+                    ? "feedPostRelationshipButton feedPostRelationshipButton--connected"
+                    : isFollowing
+                      ? "feedPostRelationshipButton feedPostRelationshipButton--following"
+                      : "feedPostRelationshipButton"
+                }
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onToggleFollow?.(author);
+                }}
+                disabled={Boolean(followBusy)}
+                aria-label={`Connect with ${author.name || author.username || "member"}`}
+                title={connectLabel}
+              >
+                {shouldShowPlusIcon ? <FaPlus aria-hidden="true" className="feedPostRelationshipButton__icon" /> : null}
+                <span className="feedPostRelationshipButton__text feedPostRelationshipButton__text--full">
+                  {connectLabel}
+                </span>
+              </button>
+            ) : null}
+          </div>
 
           <div className="feedPostHeaderRight">
             {isOwner ? (

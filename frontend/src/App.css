@@ -339,50 +339,233 @@
   }
 }
 
-@media (max-width: 900px) {
-  .platformPostsScroll {
-    padding-right: 0;
-  }
-}
-
 .feedMainColumn__header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 12px;
   flex-wrap: wrap;
 }
 
-/* Feed (mobile + tablet): consistent scrolling + sticky controls */
+.feedMainColumn__headerActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.feedCategoryDrawerToggle {
+  flex-shrink: 0;
+}
+
 @media (max-width: 900px) {
-  /* Sticky create-row under the sticky AppHeader */
-  .feedMainColumn__header {
-    position: sticky;
-    top: 72px; /* below AppHeader */
-    z-index: 25;
-    padding: 10px 0;
-    background: var(--page-bg);
+  .platformPostsScroll {
+    padding-right: 0;
   }
 
-  /* Make the category rail a real sticky element (override absolute positioning). */
+  /* Sticky toolbar under AppHeader (must sit outside .mobileFeedSlider — transform breaks sticky) */
+  .feedMainColumn__header {
+    position: sticky;
+    top: var(--app-header-height, 72px);
+    z-index: 30;
+    padding: 10px 0;
+    background: var(--page-bg);
+    box-shadow: 0 1px 0 color-mix(in oklab, var(--border) 80%, transparent);
+  }
+
+  /* Category rail: fixed overlay drawer — does not consume horizontal space or squeeze the feed */
   .feedContentWithCategorySidebar {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
+    display: block;
+    position: relative;
+  }
+
+  .categorySidebarBackdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 380;
+    background: rgba(15, 23, 42, 0.28);
+    cursor: pointer;
+    border: none;
+    margin: 0;
+    padding: 0;
+    border-radius: 0;
   }
 
   .categorySidebar {
-    position: sticky;
-    top: 56px; /* below create-row */
-    left: auto;
-    z-index: 12;
-    max-height: calc(100dvh - 160px);
-    height: fit-content;
-    align-self: flex-start;
+    position: fixed;
+    left: 12px;
+    top: calc(var(--app-header-height, 72px) + 12px);
+    z-index: 390;
+    width: min(280px, calc(100vw - 24px));
+    max-width: min(280px, calc(100vw - 24px));
+    max-height: calc(100svh - var(--app-header-height, 72px) - 24px);
+    height: auto;
+    align-self: unset;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    box-shadow: var(--shadow);
+    transform: translateX(calc(-100% - 24px));
+    transition: transform 180ms ease;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    border-left: 1px solid var(--border);
+    padding: 8px 10px;
+  }
+
+  .categorySidebar.categorySidebar--expanded {
+    transform: translateX(0);
+    width: min(280px, calc(100vw - 24px));
   }
 
   .platformPostsArea {
     padding-left: 0;
+    width: 100%;
+  }
+
+  /* Mobile: user feed vs TSI tab slider + bottom nav */
+  .feedLayout--mobileTabs {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .feedMobileTabStack {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .feedMobileSliderClip {
+    width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
+  }
+
+  .feedMainColumn--mobileSlideInner {
+    min-width: 0;
+  }
+
+  .mobileFeedSlider {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    width: 200%;
+    overflow: hidden;
+    transform: translateX(0);
+    transition: transform 220ms ease;
+  }
+
+  .mobileFeedSlider[data-active-tab="tsi"] {
+    transform: translateX(-50%);
+  }
+
+  .mobileFeedSlide {
+    width: 50%;
+    min-width: 50%;
+    max-width: 50%;
+    box-sizing: border-box;
+    flex: 0 0 50%;
+  }
+
+  .mobileFeedSlide--feed {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .mobileFeedSlide--tsi {
+    min-width: 0;
+    padding-left: 0;
+    max-height: calc(
+      100dvh - var(--app-header-height, 72px) - 96px - env(safe-area-inset-bottom, 0px)
+    );
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    box-sizing: border-box;
+  }
+
+  .mobileFeedSlide--tsi .tsiOfficialPanel__stickyHead {
+    position: sticky;
+    top: 0;
+    z-index: 4;
+    background: var(--surface);
+    margin: -16px -16px 12px;
+    padding: 16px 16px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .mobileFeedSlide[aria-hidden="true"] {
+    height: 0;
+    overflow: hidden;
+    pointer-events: none;
+    visibility: hidden;
+  }
+
+  .mobileFeedSlide--tsi .tsiOfficialPanel {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .mobileFeedSlide--tsi .tsiOfficialScroll {
+    max-height: none;
+  }
+
+  .mobileFeedBottomNav {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    z-index: 360;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    box-shadow: var(--shadow);
+    padding: 6px;
+    gap: 6px;
+    box-sizing: border-box;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .mobileFeedBottomNav__btn {
+    margin: 0;
+    padding: 10px 12px;
+    border: none;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--muted);
+    font: inherit;
+    font-weight: 600;
+    font-size: 0.88rem;
+    cursor: pointer;
+    transition:
+      background 0.15s ease,
+      color 0.15s ease;
+  }
+
+  .mobileFeedBottomNav__btn--active {
+    background: var(--primary);
+    color: #fff;
+  }
+
+  .mobileFeedBottomNav__btn:focus-visible {
+    outline: 2px solid color-mix(in oklab, var(--primary) 65%, white 35%);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mobileFeedSlider {
+      transition: none;
+    }
+  }
+
+  .page.feedPage {
+    padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
   }
 }
 
@@ -412,7 +595,11 @@
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
 }
 
-.tsiOfficialPanel__title {
+.tsiOfficialPanel__stickyHead {
+  margin-bottom: 12px;
+}
+
+.card.tsiOfficialPanel .tsiOfficialPanel__title {
   margin: 0 0 6px;
   font-size: 1rem;
   font-weight: 850;
@@ -420,7 +607,7 @@
 }
 
 .tsiOfficialPanel__subtitle {
-  margin: 0 0 12px;
+  margin: 0;
   font-size: 0.86rem;
   line-height: 1.45;
 }
@@ -2094,6 +2281,14 @@
   z-index: 400;
 }
 
+.followListModalUserRow {
+  transition: box-shadow 0.2s ease;
+}
+
+.followListModalUserRow:hover {
+  box-shadow: var(--shadow);
+}
+
 .confirmDialogOverlay {
   z-index: 500;
 }
@@ -2452,6 +2647,19 @@
 
 .feedPostAuthorMeta {
   min-width: 0;
+  display: grid;
+  align-items: start;
+}
+
+.feedPostAuthorMeta--hasConnect {
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 6px;
+}
+
+.feedPostAuthorMetaProfile {
+  grid-column: 1;
+  grid-row: 1 / -1;
+  min-width: 0;
   border: 0;
   background: transparent;
   padding: 0;
@@ -2459,6 +2667,12 @@
   text-align: left;
   color: inherit;
   display: block;
+}
+
+.feedPostAuthorMeta--hasConnect .feedPostRelationshipButton {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: center;
 }
 
 .feedPostHeaderRight {
@@ -2670,23 +2884,22 @@
     justify-content: flex-end;
   }
 
-  /* Mobile: never truncate author names; allow top area to wrap */
+  /* Keep name + role badge on one row; name shrinks / ellipsizes when tight */
   .feedPostAuthorTopLine {
-    flex-wrap: wrap;
-    white-space: normal;
-    overflow: visible;
-    row-gap: 4px;
-    column-gap: 6px;
+    flex-wrap: nowrap;
+    white-space: nowrap;
+    overflow: hidden;
+    gap: 5px;
   }
 
   .feedPostAuthorName {
-    flex: 0 0 100%;
+    flex: 0 1 auto;
+    min-width: 0;
     max-width: none;
-    overflow: visible;
-    text-overflow: unset;
-    white-space: normal;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     line-height: 1.2;
-    overflow-wrap: anywhere;
   }
 
   .feedPostRoleBadge,
@@ -2712,10 +2925,6 @@
     padding: 3px 8px;
     font-size: 0.76rem;
     line-height: 1.25;
-  }
-
-  .feedPostAuthorTopLine {
-    gap: 5px;
   }
 
   .feedPostRelationshipButton__text {

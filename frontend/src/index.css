@@ -13,6 +13,9 @@
   --text-h: var(--text);
   --card: var(--surface);
 
+  /* App header offset (sticky bars, overlays) */
+  --app-header-height: 72px;
+
   /* Top navigation bar (Feed / Profile) */
   --header-bg: #003566;
   --nav-text: rgba(255, 255, 255, 0.94);
