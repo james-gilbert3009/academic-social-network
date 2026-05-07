@@ -48,10 +48,10 @@ export default function TsiOfficialFeed() {
   return (
     <section className="card tsiOfficialPanel" aria-labelledby="tsi-latest-feed-heading">
       <h2 id="tsi-latest-feed-heading" className="tsiOfficialPanel__title">
-        Latest from TSI
+        TSI RSS feed
       </h2>
       <p className="muted tsiOfficialPanel__subtitle">
-        Recent news and events published on tsi.lv — separate from user posts.
+        Recent news and events published on tsi.lv
       </p>
 
       <div className="tsiOfficialScroll">

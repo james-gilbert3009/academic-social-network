@@ -353,6 +353,39 @@
   flex-wrap: wrap;
 }
 
+/* Feed (mobile + tablet): consistent scrolling + sticky controls */
+@media (max-width: 900px) {
+  /* Sticky create-row under the sticky AppHeader */
+  .feedMainColumn__header {
+    position: sticky;
+    top: 72px; /* below AppHeader */
+    z-index: 25;
+    padding: 10px 0;
+    background: var(--page-bg);
+  }
+
+  /* Make the category rail a real sticky element (override absolute positioning). */
+  .feedContentWithCategorySidebar {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .categorySidebar {
+    position: sticky;
+    top: 56px; /* below create-row */
+    left: auto;
+    z-index: 12;
+    max-height: calc(100dvh - 160px);
+    height: fit-content;
+    align-self: flex-start;
+  }
+
+  .platformPostsArea {
+    padding-left: 0;
+  }
+}
+
 .feedColumnTitle {
   margin: 0;
   font-size: 1.05rem;
@@ -419,7 +452,7 @@
 
 .tsiEventCard {
   border: 1px solid var(--border);
-  background: #ffffff;
+  background: var(--surface);
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
   overflow: hidden;
 }
@@ -528,6 +561,8 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 14px 18px;
+  width: min(1180px, 100%);
+  margin: 0 auto;
 }
 
 .app-header__brand {
@@ -628,6 +663,92 @@
   gap: 8px;
   align-items: center;
   margin-left: auto;
+}
+
+.app-header__settingsWrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.app-header__settingsBtn {
+  border-color: rgba(255, 255, 255, 0.24);
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--nav-text);
+}
+
+.app-header__settingsBtn:hover {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.32);
+  box-shadow: none;
+}
+
+.app-header__settingsMenu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 10px);
+  min-width: 220px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+  z-index: 260;
+}
+
+.app-header__settingsItem {
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  color: var(--text-h);
+  padding: 12px 12px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.app-header__settingsItem:last-child {
+  border-bottom: none;
+}
+
+.app-header__settingsItem:hover {
+  background: color-mix(in oklab, var(--surface) 88%, var(--social-bg) 12%);
+}
+
+.app-header__settingsItem--danger {
+  color: var(--danger);
+}
+
+.app-header__settingsToggleLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-header__themePill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: color-mix(in oklab, var(--surface) 92%, var(--bg));
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.app-header__themePill--on {
+  color: var(--primary);
+  border-color: color-mix(in oklab, var(--primary) 35%, var(--border));
+  background: color-mix(in oklab, var(--primary) 10%, var(--surface));
 }
 
 /* Toolbar on blue bar: icon-only + link-style controls (no chip boxes) */
@@ -764,7 +885,7 @@
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 900px) {
   .app-header__desktopOnly {
     display: none !important;
   }
@@ -796,15 +917,23 @@
     text-overflow: ellipsis;
   }
 
-  .app-header .app-header__mobileBar .icon-button {
-    border-color: rgba(255, 255, 255, 0.42);
-    background: rgba(255, 255, 255, 0.12);
+  /* Mobile/tablet top bar: icon buttons are flat (no boxed background). */
+  .app-header .app-header__mobileBar .app-header__mobileIconBtn {
+    border: none;
+    background: transparent;
+    box-shadow: none;
     color: var(--nav-text);
   }
 
-  .app-header .app-header__mobileBar .icon-button:hover {
-    background: rgba(255, 255, 255, 0.22);
-    border-color: rgba(255, 255, 255, 0.52);
+  .app-header .app-header__mobileBar .app-header__mobileIconBtn:hover {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+  }
+
+  .app-header__mobileAvatarBtn {
+    padding: 0;
+    overflow: hidden;
   }
 
   .app-header__mobileNotif {
@@ -870,14 +999,32 @@
     position: fixed;
     top: 0;
     right: 0;
-    height: 100%;
+    height: 100vh;
+    max-height: 100vh;
     width: min(88vw, 300px);
     z-index: 301;
     background: var(--surface);
-    padding: 16px;
+    padding: 16px 16px 0;
     box-shadow: -6px 0 28px rgba(0, 0, 0, 0.18);
-    overflow-y: auto;
+    overflow: hidden;
     text-align: left;
+  }
+
+  .app-header__drawerContent {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 12px;
+  }
+
+  .app-header__drawerFooter {
+    position: sticky;
+    bottom: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
   }
 
   .app-header__drawerHeader {
@@ -907,6 +1054,28 @@
     border-top: 1px solid var(--border);
   }
 
+  .app-header__drawerSection {
+    margin-top: 8px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+
+  .app-header__drawerSectionTitle {
+    margin: 0 0 8px;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    font-weight: 650;
+    padding-left: 2px;
+  }
+
+  .app-header__drawerNav--settings {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
   .app-header__drawerLink {
     display: inline-flex;
     align-items: center;
@@ -933,6 +1102,16 @@
     color: var(--primary);
   }
 
+  .app-header__drawerLink--danger {
+    border-color: color-mix(in oklab, var(--danger) 45%, var(--border));
+    background: color-mix(in oklab, var(--danger) 9%, var(--surface));
+    color: var(--danger);
+  }
+
+  .app-header__drawerLink--danger:hover:not(:disabled) {
+    background: color-mix(in oklab, var(--danger) 14%, var(--surface));
+  }
+
   .app-header__drawerTools {
     display: flex;
     flex-direction: column;
@@ -945,7 +1124,8 @@
   }
 
   .app-header__drawerLogout {
-    margin-top: auto;
+    margin-top: 0;
+    width: 100%;
   }
 
   /* Drawer: standard light UI (override blue-bar chip styles) */
@@ -986,7 +1166,18 @@
   }
 }
 
-@media (min-width: 769px) {
+/* Profile page: move actions to hamburger menu on mobile/tablet */
+@media (max-width: 900px) {
+  .profileForm__editActions {
+    display: none;
+  }
+
+  .profileDangerActions {
+    display: none;
+  }
+}
+
+@media (min-width: 901px) {
   .app-header__searchPanel,
   .app-header__backdrop,
   .app-header__drawer {
@@ -1229,7 +1420,7 @@
 
 .card.tsiOfficialPanel,
 .tsiOfficialFeedList .card.tsiEventCard {
-  background: #ffffff;
+  background: var(--surface);
 }
 
 .card h2 {
@@ -2212,7 +2403,7 @@
 .feedStack {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   max-width: 640px;
   margin: 0 auto;
   width: 100%;
@@ -2220,42 +2411,76 @@
 
 @media (max-width: 640px) {
   .feedStack {
-    gap: 12px;
+    gap: 10px;
     max-width: none;
   }
 }
 
 .feedPostCard {
   text-align: left;
-  padding: 12px 12px 10px;
+  padding: 10px 10px 8px;
   border-radius: 14px;
 }
 
 @media (max-width: 640px) {
   .feedPostCard {
-    padding: 10px 10px 8px;
+    padding: 8px 8px 7px;
     border-radius: 12px;
   }
 }
 
 .feedPostCard__header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 10px;
+  display: block;
 }
 
-.feedPostCard__authorRow {
-  display: flex;
+.feedPostHeader {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 12px;
+}
+
+.feedPostAuthorAvatar {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  display: inline-flex;
   align-items: flex-start;
-  gap: 10px;
+}
+
+.feedPostAuthorMeta {
   min-width: 0;
-  flex: 1;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  text-align: left;
+  color: inherit;
+  display: block;
+}
+
+.feedPostHeaderRight {
+  justify-self: end;
+  flex: 0 0 auto;
+}
+
+.feedPostAuthorTopLine {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: nowrap;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
 .feedPostCard__avatar {
-  width: 42px;
-  height: 42px;
+  width: 38px;
+  height: 38px;
   border-radius: 999px;
   object-fit: cover;
   flex-shrink: 0;
@@ -2265,32 +2490,9 @@
 
 @media (max-width: 640px) {
   .feedPostCard__avatar {
-    width: 40px;
-    height: 40px;
+    width: 34px;
+    height: 34px;
   }
-}
-
-.feedPostCard__names {
-  min-width: 0;
-}
-
-.feedPostCard__displayName {
-  font-weight: 600;
-  color: var(--text-h);
-  font-size: 1rem;
-  line-height: 1.25;
-}
-
-.feedPostCard__username {
-  font-size: 0.9rem;
-  color: var(--muted);
-  margin-top: 2px;
-}
-
-.feedPostCard__time {
-  font-size: 0.82rem;
-  color: var(--muted);
-  margin-top: 4px;
 }
 
 .feedPostCard__ownerActions {
@@ -2300,21 +2502,237 @@
   flex-wrap: wrap;
 }
 
+.postCardActions {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.postCardActions__trigger {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: color-mix(in oklab, var(--surface) 92%, var(--social-bg) 8%);
+  color: var(--text-h);
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.postCardActions__trigger:hover {
+  border-color: color-mix(in oklab, var(--primary) 55%, var(--border) 45%);
+}
+
+.postCardActions__trigger:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--primary) 65%, white 35%);
+  outline-offset: 2px;
+}
+
+.postCardActions__dots {
+  font-size: 18px;
+  transform: translateY(-1px);
+}
+
+.postCardActions__menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 160px;
+  max-width: min(260px, calc(100vw - 24px));
+  width: max-content;
+  padding: 6px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  z-index: 30;
+}
+
+.postCardActions__item {
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  color: var(--text-h);
+  padding: 9px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  font: 500 14px/1.2 system-ui;
+}
+
+.postCardActions__item:hover,
+.postCardActions__item:focus-visible {
+  background: color-mix(in oklab, var(--surface) 70%, var(--primary) 30%);
+}
+
+.postCardActions__item--danger {
+  color: color-mix(in oklab, #b91c1c 70%, var(--text-h) 30%);
+}
+
+/* Inline author relationship action (small badge-like button) */
+.feedPostAuthorName {
+  font-weight: 700;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.feedPostRoleBadge {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.feedPostRelationshipButton {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: max-content;
+  max-width: 130px;
+  min-height: 28px;
+  height: auto;
+  padding: 4px 10px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: color-mix(in oklab, var(--surface) 94%, var(--social-bg) 6%);
+  color: var(--text-h);
+  font: 600 0.8rem/1 system-ui;
+  cursor: pointer;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.feedPostRelationshipButton:hover:not(:disabled) {
+  border-color: color-mix(in oklab, var(--primary) 55%, var(--border) 45%);
+}
+
+.feedPostRelationshipButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.feedPostRelationshipButton__text {
+  display: inline-block;
+  white-space: nowrap;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.feedPostRelationshipButton__icon {
+  flex: 0 0 auto;
+  width: 12px;
+  height: 12px;
+  line-height: 1;
+  font-weight: 700;
+}
+
+.feedPostRelationshipButton__text--short {
+  display: none;
+}
+
+.feedPostRelationshipButton--following,
+.feedPostRelationshipButton--connected {
+  color: var(--text-muted);
+  border-color: color-mix(in oklab, var(--border) 70%, var(--primary) 30%);
+  background: color-mix(in oklab, var(--surface) 96%, var(--border) 4%);
+}
+
+.feedPostAuthorUsername {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.feedPostAuthorDate {
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
 @media (max-width: 640px) {
-  .feedPostCard__header {
-    flex-wrap: wrap;
+  .feedPostHeader {
+    gap: 10px;
   }
 
   .feedPostCard__ownerActions {
     width: 100%;
     justify-content: flex-end;
   }
+
+  /* Mobile: never truncate author names; allow top area to wrap */
+  .feedPostAuthorTopLine {
+    flex-wrap: wrap;
+    white-space: normal;
+    overflow: visible;
+    row-gap: 4px;
+    column-gap: 6px;
+  }
+
+  .feedPostAuthorName {
+    flex: 0 0 100%;
+    max-width: none;
+    overflow: visible;
+    text-overflow: unset;
+    white-space: normal;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+  }
+
+  .feedPostRoleBadge,
+  .feedPostRelationshipButton {
+    flex: 0 0 auto;
+  }
+
+  .postCardActions__trigger {
+    width: 36px;
+    height: 36px;
+  }
+
+  .postCardActions__menu {
+    right: 0;
+    left: auto;
+    min-width: 150px;
+    max-width: calc(100vw - 16px);
+  }
+
+  .feedPostRelationshipButton {
+    max-width: 120px;
+    min-height: 26px;
+    padding: 3px 8px;
+    font-size: 0.76rem;
+    line-height: 1.25;
+  }
+
+  .feedPostAuthorTopLine {
+    gap: 5px;
+  }
+
+  .feedPostRelationshipButton__text {
+    line-height: 1.25;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 1024px) {
+  .postCardActions__menu {
+    min-width: 170px;
+  }
 }
 
 .feedPostCard__body {
-  margin-top: 10px;
+  margin-top: 8px;
   color: var(--text-h);
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   line-height: 1.42;
   word-break: break-word;
 }
@@ -2347,7 +2765,7 @@
 }
 
 .feedPostCard__media {
-  margin-top: 10px;
+  margin-top: 8px;
   border-radius: 10px;
   overflow: hidden;
   border: 1px solid var(--border);
@@ -2383,8 +2801,8 @@
 }
 
 .feedPostCard__toolbar {
-  margin-top: 10px;
-  padding-top: 10px;
+  margin-top: 8px;
+  padding-top: 8px;
   border-top: 1px solid var(--border);
   display: flex;
   flex-wrap: wrap;

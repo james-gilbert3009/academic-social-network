@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import timeAgo from "../utils/timeAgo";
 import RoleBadge from "./RoleBadge";
@@ -10,6 +10,7 @@ import {
   FaComments,
   FaFlask,
   FaHeart,
+  FaPlus,
   FaQuestionCircle,
   FaRegFileAlt,
   FaRegHeart,
@@ -61,6 +62,11 @@ function hasLiked(post, currentUser) {
 export default function FeedPostCard({
   post,
   currentUser,
+  actionsMenuOpen,
+  onToggleActionsMenu,
+  onCloseActionsMenu,
+  followBusy,
+  onToggleFollow,
   onLike,
   onEdit,
   onDelete,
@@ -68,9 +74,25 @@ export default function FeedPostCard({
 }) {
   const navigate = useNavigate();
   const [captionExpanded, setCaptionExpanded] = useState(false);
+  const actionsWrapRef = useRef(null);
   const author = post.author || {};
   const authorId = typeof post.author === "object" ? post.author?._id : post.author;
   const isOwner = currentUser?._id && authorId && String(currentUser._id) === String(authorId);
+  const canShowConnect = Boolean(currentUser?._id && authorId && !isOwner);
+
+  const isFollowing = Boolean(author?.isFollowing);
+  const isFollower = Boolean(author?.isFollower);
+  const isFriend = Boolean(author?.isFriend);
+
+  const connectLabel = isFriend
+    ? "Connected"
+    : isFollower && !isFollowing
+      ? "Connect Back"
+      : isFollowing
+        ? "Following"
+        : "Connect";
+
+  const shouldShowPlusIcon = !isFollowing && !isFriend;
 
   const avatarSrc =
     uploadUrl(author.profileImage) ||
@@ -93,49 +115,154 @@ export default function FeedPostCard({
   const categoryLabel = CATEGORY_LABELS[categoryKey] || CATEGORY_LABELS.general;
   const CategoryIcon = CATEGORY_ICONS[categoryKey] || CATEGORY_ICONS.general;
 
+  useEffect(() => {
+    if (!actionsMenuOpen) return;
+
+    function onDocPointerDown(e) {
+      const wrap = actionsWrapRef.current;
+      if (!wrap) return;
+      if (wrap.contains(e.target)) return;
+      onCloseActionsMenu?.();
+    }
+
+    function onDocKeyDown(e) {
+      if (e.key !== "Escape") return;
+      onCloseActionsMenu?.();
+    }
+
+    document.addEventListener("pointerdown", onDocPointerDown);
+    document.addEventListener("keydown", onDocKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onDocPointerDown);
+      document.removeEventListener("keydown", onDocKeyDown);
+    };
+  }, [actionsMenuOpen, onCloseActionsMenu]);
+
   return (
     <article className="card feedPostCard">
       <header className="feedPostCard__header">
-        <button
-          type="button"
-          className="feedPostCard__authorRow"
-          onClick={() => {
-            if (!authorProfileId) return;
-            navigate(`/profile/${authorProfileId}`);
-          }}
-          style={{
-            border: "none",
-            background: "transparent",
-            padding: 0,
-            margin: 0,
-            cursor: authorProfileId ? "pointer" : "default",
-            textAlign: "left",
-          }}
-        >
-          <img className="feedPostCard__avatar" src={avatarSrc} alt="" />
-          <div className="feedPostCard__names">
-            <div
-              className="feedPostCard__displayName"
-              style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}
-            >
-              <span>{author.name || "Someone"}</span>
-              <RoleBadge role={author?.role} />
-            </div>
-            <div className="feedPostCard__username">@{author.username || "user"}</div>
-            {timeLabel ? <div className="feedPostCard__time">{timeLabel}</div> : null}
-          </div>
-        </button>
+        <div className="feedPostHeader">
+          <button
+            type="button"
+            className="feedPostAuthorAvatar"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (!authorProfileId) return;
+              navigate(`/profile/${authorProfileId}`);
+            }}
+            aria-label={`Open ${author.name || author.username || "member"} profile`}
+          >
+            <img className="feedPostCard__avatar" src={avatarSrc} alt="" />
+          </button>
 
-        {isOwner ? (
-          <div className="feedPostCard__ownerActions">
-            <button className="secondary-button btn-compact" type="button" onClick={() => onEdit?.(post)}>
-              Edit
-            </button>
-            <button className="danger-button btn-compact" type="button" onClick={() => onDelete?.(post)}>
-              Delete
-            </button>
+          <button
+            type="button"
+            className="feedPostAuthorMeta"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (!authorProfileId) return;
+              navigate(`/profile/${authorProfileId}`);
+            }}
+            style={{ cursor: authorProfileId ? "pointer" : "default" }}
+            aria-label={`Open ${author.name || author.username || "member"} profile`}
+          >
+            <div className="feedPostAuthorTopLine">
+              <span className="feedPostAuthorName">{author.name || "Someone"}</span>
+              <span className="feedPostRoleBadge">
+                <RoleBadge role={author?.role} />
+              </span>
+              {canShowConnect ? (
+                <button
+                  type="button"
+                  className={
+                    isFriend
+                      ? "feedPostRelationshipButton feedPostRelationshipButton--connected"
+                      : isFollowing
+                        ? "feedPostRelationshipButton feedPostRelationshipButton--following"
+                        : "feedPostRelationshipButton"
+                  }
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onToggleFollow?.(author);
+                  }}
+                  disabled={Boolean(followBusy)}
+                  aria-label={`Connect with ${author.name || author.username || "member"}`}
+                  title={connectLabel}
+                >
+                  {shouldShowPlusIcon ? <FaPlus aria-hidden="true" className="feedPostRelationshipButton__icon" /> : null}
+                  <span className="feedPostRelationshipButton__text feedPostRelationshipButton__text--full">
+                    {connectLabel}
+                  </span>
+                </button>
+              ) : null}
+            </div>
+
+            <div className="feedPostAuthorUsername">@{author.username || "user"}</div>
+            {timeLabel ? <div className="feedPostAuthorDate">{timeLabel}</div> : null}
+          </button>
+
+          <div className="feedPostHeaderRight">
+            {isOwner ? (
+              <div className="postCardActions" ref={actionsWrapRef}>
+                <button
+                  type="button"
+                  className="postCardActions__trigger"
+                  aria-label="Post actions"
+                  aria-haspopup="menu"
+                  aria-expanded={Boolean(actionsMenuOpen)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onToggleActionsMenu?.();
+                  }}
+                >
+                  <span aria-hidden="true" className="postCardActions__dots">
+                    ⋮
+                  </span>
+                </button>
+
+                {actionsMenuOpen ? (
+                  <div
+                    className="postCardActions__menu"
+                    role="menu"
+                    aria-label="Post actions"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }}
+                  >
+                    <button
+                      type="button"
+                      className="postCardActions__item"
+                      role="menuitem"
+                      onClick={() => {
+                        onCloseActionsMenu?.();
+                        onEdit?.(post);
+                      }}
+                    >
+                      Edit post
+                    </button>
+                    <button
+                      type="button"
+                      className="postCardActions__item postCardActions__item--danger"
+                      role="menuitem"
+                      onClick={() => {
+                        onCloseActionsMenu?.();
+                        onDelete?.(post);
+                      }}
+                    >
+                      Delete post
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </div>
-        ) : null}
+        </div>
+
       </header>
 
       <div style={{ marginTop: 12 }}>

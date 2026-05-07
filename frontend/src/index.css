@@ -49,9 +49,39 @@
   }
 }
 
+html {
+  /* Keep centered layouts consistent when scrollbars appear/disappear across routes. */
+  scrollbar-gutter: stable;
+}
+
 body {
   margin: 0;
   background: var(--page-bg);
+}
+
+body.dark-mode {
+  --bg: #0f172a;
+  --surface: #111827;
+  --text: #f8fafc;
+  --muted: #94a3b8;
+  --primary: #60a5fa;
+  --border: #334155;
+  --danger: #f87171;
+  --header-bg: #020617;
+
+  --page-bg: var(--bg);
+  --text-h: var(--text);
+  --card: var(--surface);
+  --code-bg: color-mix(in oklab, var(--surface) 88%, #000);
+  --social-bg: color-mix(in oklab, var(--surface) 88%, #000);
+  --primary-dark: color-mix(in oklab, var(--primary) 72%, #000);
+  --primary-muted: color-mix(in oklab, var(--primary) 78%, #000);
+
+  --accent: var(--primary);
+  --accent-bg: color-mix(in oklab, var(--primary) 18%, transparent);
+  --accent-border: color-mix(in oklab, var(--primary) 42%, transparent);
+
+  color-scheme: dark;
 }
 
 #root {

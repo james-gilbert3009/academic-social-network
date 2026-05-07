@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaBars, FaSearch, FaSignOutAlt, FaTimes, FaUser } from "react-icons/fa";
+import { FaBars, FaCog, FaMoon, FaSearch, FaSignOutAlt, FaSun, FaTimes, FaUser } from "react-icons/fa";
 import { API_BASE_URL, setAuthToken } from "../api";
+import { getStoredTheme, toggleTheme } from "../utils/theme";
 
 function profileThumbSrc(user) {
   if (!user) return "";
@@ -34,29 +35,56 @@ function HeaderProfileGlyph({ currentUser, iconSize }) {
 /**
  * Shared top header for authenticated pages (Feed, Profile).
  * Desktop: Feed + search together; notifications + CTAs + Profile + Logout on the right.
- * Mobile (≤768px): search opens from icon only; other actions live in hamburger drawer.
+ * Mobile / tablet (≤900px): search opens from icon only; other actions live in hamburger drawer.
  */
 export default function AppHeader({
   activePage = "feed",
   search = null,
   notifications = null,
   currentUser = null,
+  onEditProfile = null,
+  onDeleteAccount = null,
+  showProfileActions = false,
+  // Backwards-compat for older prop names used on Profile.
+  onMobileEditProfile = null,
+  onMobileDeleteAccount = null,
   children,
 }) {
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
+  const settingsWrapRef = useRef(null);
+
+  const effectiveShowProfileActions = Boolean(showProfileActions);
+  const effectiveOnEditProfile = effectiveShowProfileActions
+    ? onEditProfile || onMobileEditProfile
+    : null;
+  const effectiveOnDeleteAccount = effectiveShowProfileActions
+    ? onDeleteAccount || onMobileDeleteAccount
+    : null;
+
+  // Settings actions should be available anywhere as long as the user is logged in.
+  // When on the owner's profile page, we can use the passed handlers; otherwise we fall back to /profile.
+  const canShowAccountActions = Boolean(currentUser);
+  const canEdit = canShowAccountActions;
+  const canDelete = canShowAccountActions;
+
+  const themeLabel = useMemo(() => (darkMode ? "Disable dark mode" : "Enable dark mode"), [darkMode]);
 
   function logout() {
     localStorage.removeItem("token");
     setAuthToken("");
     navigate("/login", { replace: true });
     setMenuOpen(false);
+    setSettingsOpen(false);
   }
 
   function closeOverlays() {
     setMenuOpen(false);
     setSearchOpen(false);
+    setSettingsOpen(false);
   }
 
   function goFeed() {
@@ -67,6 +95,40 @@ export default function AppHeader({
   function goProfile() {
     navigate("/profile");
     closeOverlays();
+  }
+
+  function runAndCloseMenu(fn) {
+    setMenuOpen(false);
+    if (typeof fn === "function") fn();
+  }
+
+  function closeSettings() {
+    setSettingsOpen(false);
+  }
+
+  function editProfile() {
+    closeSettings();
+    // If we're already on the logged-in user's own profile and have a handler, use it.
+    // Otherwise navigate to /profile and let Profile.jsx open edit mode automatically.
+    if (activePage === "profile" && effectiveShowProfileActions && typeof effectiveOnEditProfile === "function") {
+      effectiveOnEditProfile();
+      return;
+    }
+    navigate("/profile", { state: { openEditProfile: true } });
+  }
+
+  function deleteAccount() {
+    closeSettings();
+    if (typeof effectiveOnDeleteAccount === "function") {
+      effectiveOnDeleteAccount();
+      return;
+    }
+    navigate("/profile", { state: { openDeleteAccount: true } });
+  }
+
+  function toggleDarkMode() {
+    const next = toggleTheme();
+    setDarkMode(next === "dark");
   }
 
   useEffect(() => {
@@ -88,10 +150,31 @@ export default function AppHeader({
   }, [menuOpen]);
 
   useEffect(() => {
+    setDarkMode(getStoredTheme() === "dark");
+  }, []);
+
+  useEffect(() => {
+    if (!settingsOpen) return;
+    function onDown(e) {
+      const el = settingsWrapRef.current;
+      if (!el) return;
+      if (el.contains(e.target)) return;
+      setSettingsOpen(false);
+    }
+    window.addEventListener("mousedown", onDown);
+    window.addEventListener("touchstart", onDown, { passive: true });
+    return () => {
+      window.removeEventListener("mousedown", onDown);
+      window.removeEventListener("touchstart", onDown);
+    };
+  }, [settingsOpen]);
+
+  useEffect(() => {
     function onResize() {
-      if (typeof window.matchMedia === "function" && window.matchMedia("(min-width: 769px)").matches) {
+      if (typeof window.matchMedia === "function" && window.matchMedia("(min-width: 901px)").matches) {
         setMenuOpen(false);
         setSearchOpen(false);
+        setSettingsOpen(false);
       }
     }
     window.addEventListener("resize", onResize);
@@ -132,6 +215,63 @@ export default function AppHeader({
         <div className="app-header__end app-header__desktopOnly">
           {notifications}
           {children}
+
+          <div className="app-header__settingsWrap" ref={settingsWrapRef}>
+            <button
+              type="button"
+              className="icon-button app-header__settingsBtn"
+              aria-haspopup="menu"
+              aria-expanded={settingsOpen}
+              aria-label={settingsOpen ? "Close settings" : "Open settings"}
+              onClick={() => setSettingsOpen((v) => !v)}
+            >
+              <FaCog size={16} aria-hidden />
+            </button>
+
+            {settingsOpen ? (
+              <div className="app-header__settingsMenu" role="menu" aria-label="Settings">
+                {canEdit ? (
+                  <button type="button" className="app-header__settingsItem" role="menuitem" onClick={editProfile}>
+                    Edit Profile
+                  </button>
+                ) : null}
+
+                {canShowAccountActions && canDelete ? (
+                  <button
+                    type="button"
+                    className="app-header__settingsItem app-header__settingsItem--danger"
+                    role="menuitem"
+                    onClick={deleteAccount}
+                  >
+                    Delete Account
+                  </button>
+                ) : null}
+
+                <button
+                  type="button"
+                  className="app-header__settingsItem app-header__settingsItem--toggle"
+                  role="menuitemcheckbox"
+                  aria-checked={darkMode}
+                  onClick={toggleDarkMode}
+                  title={themeLabel}
+                >
+                  <span className="app-header__settingsToggleLabel">Dark mode</span>
+                  <span className={darkMode ? "app-header__themePill app-header__themePill--on" : "app-header__themePill"}>
+                    {darkMode ? (
+                      <>
+                        <FaMoon size={12} aria-hidden /> On
+                      </>
+                    ) : (
+                      <>
+                        <FaSun size={12} aria-hidden /> Off
+                      </>
+                    )}
+                  </span>
+                </button>
+              </div>
+            ) : null}
+          </div>
+
           <button
             type="button"
             className={
@@ -168,6 +308,16 @@ export default function AppHeader({
           ) : null}
           {notifications ? (
             <div className="app-header__mobileNotif">{notifications}</div>
+          ) : null}
+          {currentUser ? (
+            <button
+              type="button"
+              className="icon-button app-header__mobileIconBtn app-header__mobileAvatarBtn"
+              aria-label="Go to profile"
+              onClick={goProfile}
+            >
+              <HeaderProfileGlyph currentUser={currentUser} iconSize={16} />
+            </button>
           ) : null}
           <button
             type="button"
@@ -219,46 +369,93 @@ export default function AppHeader({
                 <FaTimes size={16} aria-hidden />
               </button>
             </div>
+            <div className="app-header__drawerContent">
+              <nav className="app-header__drawerNav" aria-label="Main navigation">
+                <button
+                  type="button"
+                  className={
+                    activePage === "feed"
+                      ? "app-header__drawerLink app-header__drawerLink--active"
+                      : "app-header__drawerLink"
+                  }
+                  onClick={goFeed}
+                >
+                  Feed
+                </button>
+              </nav>
 
-            <nav className="app-header__drawerNav" aria-label="Main navigation">
+              <div className="app-header__drawerTools">{children}</div>
+
+              <nav className="app-header__drawerNav app-header__drawerNav--footer" aria-label="Account">
+                <button
+                  type="button"
+                  className={
+                    activePage === "profile"
+                      ? "app-header__drawerLink app-header__drawerLink--active"
+                      : "app-header__drawerLink"
+                  }
+                  onClick={goProfile}
+                >
+                  <HeaderProfileGlyph currentUser={currentUser} iconSize={16} />
+                  Profile
+                </button>
+              </nav>
+
+              {canShowAccountActions ? (
+                <div className="app-header__drawerSection" aria-label="Settings">
+                  <div className="app-header__drawerSectionTitle">Settings</div>
+                  <nav className="app-header__drawerNav app-header__drawerNav--settings" aria-label="Settings">
+                    <button
+                      type="button"
+                      className="app-header__drawerLink"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        toggleDarkMode();
+                      }}
+                    >
+                      Dark mode: {darkMode ? "On" : "Off"}
+                    </button>
+
+                    {canEdit ? (
+                      <button
+                        type="button"
+                        className="app-header__drawerLink"
+                        onClick={() => {
+                          setMenuOpen(false);
+                          editProfile();
+                        }}
+                      >
+                        Edit Profile
+                      </button>
+                    ) : null}
+
+                    {canDelete ? (
+                      <button
+                        type="button"
+                        className="app-header__drawerLink app-header__drawerLink--danger"
+                        onClick={() => {
+                          setMenuOpen(false);
+                          deleteAccount();
+                        }}
+                      >
+                        Delete Account
+                      </button>
+                    ) : null}
+                  </nav>
+                </div>
+              ) : null}
+            </div>
+
+            <div className="app-header__drawerFooter">
               <button
+                className="primary-button btn-compact btnWithIcon app-header__drawerLogout"
                 type="button"
-                className={
-                  activePage === "feed"
-                    ? "app-header__drawerLink app-header__drawerLink--active"
-                    : "app-header__drawerLink"
-                }
-                onClick={goFeed}
+                onClick={logout}
               >
-                Feed
+                <FaSignOutAlt size={14} aria-hidden />
+                Logout
               </button>
-            </nav>
-
-            <div className="app-header__drawerTools">{children}</div>
-
-            <nav className="app-header__drawerNav app-header__drawerNav--footer" aria-label="Account">
-              <button
-                type="button"
-                className={
-                  activePage === "profile"
-                    ? "app-header__drawerLink app-header__drawerLink--active"
-                    : "app-header__drawerLink"
-                }
-                onClick={goProfile}
-              >
-                <HeaderProfileGlyph currentUser={currentUser} iconSize={16} />
-                Profile
-              </button>
-            </nav>
-
-            <button
-              className="primary-button btn-compact btnWithIcon app-header__drawerLogout"
-              type="button"
-              onClick={logout}
-            >
-              <FaSignOutAlt size={14} aria-hidden />
-              Logout
-            </button>
+            </div>
           </div>
         </>
       ) : null}

@@ -14,6 +14,7 @@ import {
 
 import { getProfile } from "../api/profile";
 import { deletePost, getPosts, toggleLike, updatePost } from "../api/posts";
+import { toggleFollow } from "../api/users";
 import AppHeader from "../components/AppHeader.jsx";
 import ConfirmDialog from "../components/ConfirmDialog";
 import CreatePostForm from "../components/CreatePostForm";
@@ -39,6 +40,9 @@ export default function Feed() {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [followBusyByUserId, setFollowBusyByUserId] = useState({});
+  const [openPostActionsId, setOpenPostActionsId] = useState(null);
+  const [followPendingDisconnectAuthor, setFollowPendingDisconnectAuthor] = useState(null);
   const [selectedPost, setSelectedPost] = useState(null);
   const [showPostDetailsModal, setShowPostDetailsModal] = useState(false);
 
@@ -162,8 +166,131 @@ export default function Feed() {
     }
   }
 
+  function updateAuthorRelationshipEverywhere(authorId, nextFlags) {
+    const targetId = String(authorId || "");
+    if (!targetId) return;
+
+    setPosts((prev) =>
+      (prev || []).map((p) => {
+        const rawAuthor = p?.author;
+        const pAuthorId =
+          rawAuthor && typeof rawAuthor === "object" && rawAuthor._id ? rawAuthor._id : rawAuthor;
+        if (!pAuthorId || String(pAuthorId) !== targetId) return p;
+
+        const authorObj = rawAuthor && typeof rawAuthor === "object" ? rawAuthor : { _id: pAuthorId };
+        return {
+          ...p,
+          author: {
+            ...authorObj,
+            ...nextFlags,
+          },
+        };
+      })
+    );
+  }
+
+  async function performToggleFollowFromFeed(author) {
+    const authorId = author?._id;
+    if (!authorId) return;
+
+    const key = String(authorId);
+    if (followBusyByUserId[key]) return;
+
+    const wasFollowing = Boolean(author?.isFollowing);
+    const wasFollower = Boolean(author?.isFollower);
+    const wasFriend = Boolean(author?.isFriend);
+
+    setFollowBusyByUserId((prev) => ({ ...prev, [key]: true }));
+    setError("");
+
+    const optimisticIsFollowing = !wasFollowing;
+    const optimisticFlags = {
+      isFollowing: optimisticIsFollowing,
+      isFollower: wasFollower,
+      isFriend: Boolean(optimisticIsFollowing && wasFollower),
+    };
+    updateAuthorRelationshipEverywhere(authorId, optimisticFlags);
+
+    try {
+      const res = await toggleFollow(authorId);
+      const nextIsFollowing = Boolean(res?.data?.isFollowing);
+      const nextIsFollower = Boolean(res?.data?.isFollower);
+      const nextIsFriend = Boolean(res?.data?.isFriend);
+
+      updateAuthorRelationshipEverywhere(authorId, {
+        isFollowing: nextIsFollowing,
+        isFollower: nextIsFollower,
+        isFriend: nextIsFriend,
+        ...(typeof res?.data?.followersCount === "number"
+          ? { followersCount: res.data.followersCount }
+          : {}),
+      });
+
+      setMe((prev) => {
+        if (!prev?._id) return prev;
+        const prevFollowing = Array.isArray(prev.following) ? prev.following : [];
+        const nextFollowing = nextIsFollowing
+          ? [...prevFollowing.filter((id) => String(id) !== key), authorId]
+          : prevFollowing.filter((id) => String(id) !== key);
+
+        return {
+          ...prev,
+          following: nextFollowing,
+          ...(typeof res?.data?.followingCount === "number"
+            ? { followingCount: res.data.followingCount }
+            : {}),
+        };
+      });
+
+      window.dispatchEvent(new Event("notifications:refresh"));
+    } catch (err) {
+      console.error("Feed toggleFollow failed:", err);
+      updateAuthorRelationshipEverywhere(authorId, {
+        isFollowing: wasFollowing,
+        isFollower: wasFollower,
+        isFriend: wasFriend,
+      });
+      setError(err?.response?.data?.message || err?.message || "Failed to toggle connection");
+    } finally {
+      setFollowBusyByUserId((prev) => {
+        const next = { ...(prev || {}) };
+        delete next[key];
+        return next;
+      });
+    }
+  }
+
+  function requestDisconnectConfirm(author) {
+    setFollowPendingDisconnectAuthor(author || null);
+  }
+
+  function cancelDisconnectConfirm() {
+    setFollowPendingDisconnectAuthor(null);
+  }
+
+  async function confirmDisconnect() {
+    const author = followPendingDisconnectAuthor;
+    setFollowPendingDisconnectAuthor(null);
+    if (!author?._id) return;
+    await performToggleFollowFromFeed(author);
+  }
+
+  async function handleToggleFollowFromFeed(author) {
+    const wasFriend = Boolean(author?.isFriend);
+    const wasFollowing = Boolean(author?.isFollowing);
+
+    // Only confirm when the click would disconnect (i.e., unfollow while connected).
+    if (wasFriend && wasFollowing) {
+      requestDisconnectConfirm(author);
+      return;
+    }
+
+    await performToggleFollowFromFeed(author);
+  }
+
   function handleEdit(post) {
     if (!post) return;
+    setOpenPostActionsId(null);
     setEditingPost(post);
     setEditContent(post.content || "");
   }
@@ -195,6 +322,7 @@ export default function Feed() {
 
   function requestDeletePost(post) {
     if (!post?._id) return;
+    setOpenPostActionsId(null);
     setPostPendingDelete(post);
   }
 
@@ -358,6 +486,23 @@ export default function Feed() {
                       key={post._id}
                       post={post}
                       currentUser={me}
+                      actionsMenuOpen={Boolean(openPostActionsId && String(openPostActionsId) === String(post._id))}
+                      onToggleActionsMenu={() =>
+                        setOpenPostActionsId((prev) =>
+                          prev && String(prev) === String(post._id) ? null : post._id
+                        )
+                      }
+                      onCloseActionsMenu={() => setOpenPostActionsId(null)}
+                      followBusy={Boolean(
+                        followBusyByUserId[
+                          String(
+                            post?.author && typeof post.author === "object" && post.author._id
+                              ? post.author._id
+                              : post?.author || ""
+                          )
+                        ]
+                      )}
+                      onToggleFollow={handleToggleFollowFromFeed}
                       onLike={handleLike}
                       onEdit={handleEdit}
                       onDelete={requestDeletePost}
@@ -384,6 +529,16 @@ export default function Feed() {
         cancelLabel="Cancel"
         onCancel={cancelDeletePost}
         onConfirm={confirmDeletePost}
+      />
+
+      <ConfirmDialog
+        open={Boolean(followPendingDisconnectAuthor)}
+        title="Disconnect"
+        message="Disconnect by unfollowing?"
+        confirmLabel="Disconnect"
+        cancelLabel="Cancel"
+        onCancel={cancelDisconnectConfirm}
+        onConfirm={confirmDisconnect}
       />
 
       {selectedPost && showPostDetailsModal ? (

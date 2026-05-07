@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import "./App.css";
 import { setAuthToken } from "./api";
+import { applyStoredTheme } from "./utils/theme";
 import RequireAuth from "./components/RequireAuth.jsx";
 import RequireProfileComplete from "./components/RequireProfileComplete.jsx";
 import Feed from "./pages/Feed.jsx";
@@ -15,6 +16,11 @@ export default function App() {
   // Keep axios Authorization in sync with localStorage token.
   useEffect(() => {
     setAuthToken(localStorage.getItem("token") || "");
+  }, []);
+
+  // Apply stored theme on initial load (persisted across refresh).
+  useEffect(() => {
+    applyStoredTheme();
   }, []);
 
   return (

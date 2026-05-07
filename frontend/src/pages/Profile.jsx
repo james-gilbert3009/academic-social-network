@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { API_BASE_URL, setAuthToken } from "../api";
 import { getProfile, getProfileById, updateProfile } from "../api/profile";
 import { deletePost, getPostsByUser } from "../api/posts";
@@ -46,6 +46,9 @@ function profileImageSrc(profileImage) {
 export default function Profile() {
   const navigate = useNavigate();
   const { userId: routeUserId } = useParams();
+  const location = useLocation();
+  const handledEditRouteKey = useRef(null);
+  const handledDeleteRouteKey = useRef(null);
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -420,6 +423,46 @@ export default function Profile() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routeUserId]);
 
+  useEffect(() => {
+    const wantsEdit = Boolean(location?.state?.openEditProfile);
+    if (!wantsEdit) return;
+    if (handledEditRouteKey.current === location.key) return;
+    if (loading) return;
+    if (!user || !me) return;
+
+    // Only open edit mode when the currently displayed profile is the logged-in user.
+    // This prevents briefly opening edit mode on /profile when we just navigated from /profile/:userId
+    // but the page still shows the other user's data until loadProfile finishes.
+    const viewingMe = String(user?._id || "") === String(me?._id || "");
+    if (!isOwnProfile || !viewingMe) return;
+
+    handledEditRouteKey.current = location.key;
+
+    if (!editing) startEdit();
+
+    // Clear the route state so it doesn't keep forcing edit mode open.
+    navigate(location.pathname, { replace: true, state: {} });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location?.state, loading, user, me, readOnlyProfile, isOwnProfile, editing]);
+
+  useEffect(() => {
+    const wantsDelete = Boolean(location?.state?.openDeleteAccount);
+    if (!wantsDelete) return;
+    if (handledDeleteRouteKey.current === location.key) return;
+    if (loading) return;
+    if (!user || !me) return;
+
+    const viewingMe = String(user?._id || "") === String(me?._id || "");
+    if (!isOwnProfile || !viewingMe) return;
+
+    handledDeleteRouteKey.current = location.key;
+
+    openDeleteAccountModal();
+    // Clear the route state so it doesn't keep re-opening the dialog.
+    navigate(location.pathname, { replace: true, state: {} });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location?.state, loading, user, me, readOnlyProfile, isOwnProfile]);
+
   function openDeleteAccountModal() {
     setStatus("");
     setShowDeleteAccountModal(true);
@@ -547,22 +590,14 @@ export default function Profile() {
   return (
     <div className="page">
       <AppHeader
-        activePage="profile"
+        activePage={readOnlyProfile ? "feed" : "profile"}
         currentUser={me}
         search={me ? <UserSearch /> : null}
         notifications={me ? <NotificationsDropdown /> : null}
-      >
-        {readOnlyProfile ? (
-          <button
-            className="secondary-button btn-compact btnWithIcon"
-            type="button"
-            onClick={() => navigate("/profile")}
-          >
-            <FaUser size={14} aria-hidden />
-            My profile
-          </button>
-        ) : null}
-      </AppHeader>
+        showProfileActions={!readOnlyProfile && isOwnProfile}
+        onEditProfile={startEdit}
+        onDeleteAccount={openDeleteAccountModal}
+      />
 
       <h1 style={{ marginBottom: 6 }}>
         {readOnlyProfile ? "Member profile" : "Your profile"}
@@ -705,13 +740,7 @@ export default function Profile() {
               />
             </div>
 
-            {isOwnProfile ? (
-              <div style={{ marginTop: 20 }}>
-                <button className="danger-button btn-compact" type="button" onClick={openDeleteAccountModal}>
-                  Delete account
-                </button>
-              </div>
-            ) : null}
+            {/* Delete account is available via Settings menu. */}
           </section>
 
           <section className="card">

@@ -82,6 +82,32 @@ function getPopulatedPostQuery() {
     .populate("comments.user", "name username profileImage role");
 }
 
+function withAuthorRelationshipFlags(posts, me) {
+  const followingSet = new Set((me?.following || []).map((id) => String(id)));
+  const followersSet = new Set((me?.followers || []).map((id) => String(id)));
+
+  return (posts || []).map((post) => {
+    const obj = typeof post?.toObject === "function" ? post.toObject() : post;
+    const author = obj?.author;
+    const authorId = author && typeof author === "object" && author._id ? String(author._id) : "";
+    if (!authorId) return obj;
+
+    const isFollowing = followingSet.has(authorId);
+    const isFollower = followersSet.has(authorId);
+    const isFriend = Boolean(isFollowing && isFollower);
+
+    return {
+      ...obj,
+      author: {
+        ...author,
+        isFollowing,
+        isFollower,
+        isFriend,
+      },
+    };
+  });
+}
+
 // POST /api/posts
 // Create a new post (multipart/form-data: content, optional image)
 router.post("/", requireAuth, uploadSinglePostImage, async (req, res) => {
@@ -149,8 +175,13 @@ router.post("/", requireAuth, uploadSinglePostImage, async (req, res) => {
 // Get all posts (newest first)
 router.get("/", requireAuth, async (req, res) => {
   try {
-    const posts = await getPopulatedPostQuery().exec();
-    return res.json({ posts });
+    const [posts, me] = await Promise.all([
+      getPopulatedPostQuery().exec(),
+      User.findById(req.user.id).select("followers following").lean(),
+    ]);
+
+    const enriched = withAuthorRelationshipFlags(posts, me);
+    return res.json({ posts: enriched });
   } catch (err) {
     console.error("GET /api/posts error:", err);
     return res.status(500).json({ message: "Server error" });
@@ -161,12 +192,16 @@ router.get("/", requireAuth, async (req, res) => {
 // Get posts by a specific user (newest first)
 router.get("/user/:userId", requireAuth, async (req, res) => {
   try {
-    const posts = await Post.find({ author: req.params.userId })
-      .sort({ createdAt: -1 })
-      .populate("author", "name username profileImage role")
-      .populate("comments.user", "name username profileImage role");
+    const [posts, me] = await Promise.all([
+      Post.find({ author: req.params.userId })
+        .sort({ createdAt: -1 })
+        .populate("author", "name username profileImage role")
+        .populate("comments.user", "name username profileImage role"),
+      User.findById(req.user.id).select("followers following").lean(),
+    ]);
 
-    return res.json({ posts });
+    const enriched = withAuthorRelationshipFlags(posts, me);
+    return res.json({ posts: enriched });
   } catch (error) {
     return res.status(500).json({ message: "Failed to load user posts" });
   }
