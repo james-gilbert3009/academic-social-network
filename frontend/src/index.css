@@ -2,12 +2,35 @@
   /* TSI CONNECT — clean white academic UI */
   --bg: #f8fafc;
   --surface: #ffffff;
+  --surface-soft: #f1f5f9;
+  --surface-hover: #eaf0f7;
   --text: #0f172a;
   --muted: #64748b;
+  --text-muted: var(--muted);
   --primary: #003566;
   --primary-dark: #002948;
+  --primary-soft: rgba(0, 53, 102, 0.12);
   --border: #e2e8f0;
+  --border-strong: #cbd5e1;
   --danger: #dc2626;
+  --on-primary: #ffffff;
+  --card-bg: var(--surface);
+  --shadow-float: 0 12px 26px rgba(0, 0, 0, 0.12);
+  --input-bg: var(--surface);
+  --input-border: var(--border);
+  --header-pill-bg: #ffffff;
+  --header-pill-border: #ffffff;
+  --header-pill-hover-bg: rgba(255, 255, 255, 0.93);
+  --header-pill-hover-border: rgba(255, 255, 255, 0.93);
+  --header-control-bg: rgba(255, 255, 255, 0.12);
+  --header-control-border: rgba(255, 255, 255, 0.22);
+  --header-control-bg-strong: rgba(255, 255, 255, 0.22);
+  --header-control-border-strong: rgba(255, 255, 255, 0.38);
+  --header-focus-border: rgba(255, 255, 255, 0.85);
+  --header-focus-ring: rgba(255, 255, 255, 0.22);
+  --header-input-bg: rgba(255, 255, 255, 0.97);
+  --header-input-border: rgba(255, 255, 255, 0.45);
+  --stage-bg: #0f172a;
 
   --page-bg: var(--bg);
   --text-h: var(--text);
@@ -65,19 +88,47 @@ body {
 body.dark-mode {
   --bg: #0f172a;
   --surface: #111827;
+  --surface-soft: #1f2937;
+  --surface-hover: #273449;
+
   --text: #f8fafc;
   --muted: #94a3b8;
-  --primary: #60a5fa;
+  --text-muted: #cbd5e1;
+
   --border: #334155;
-  --danger: #f87171;
+  --border-strong: #475569;
+
+  --primary: #60a5fa;
+  --primary-dark: #3b82f6;
+  --primary-soft: rgba(96, 165, 250, 0.16);
+
   --header-bg: #020617;
+  --shadow:
+    0 18px 40px rgba(0, 0, 0, 0.35);
+  --shadow-float: 0 18px 40px rgba(0, 0, 0, 0.35);
+  --on-primary: #020617;
+  --input-bg: var(--surface-soft);
+  --input-border: var(--border-strong);
+  --header-pill-bg: var(--surface-soft);
+  --header-pill-border: var(--border-strong);
+  --header-pill-hover-bg: var(--surface-hover);
+  --header-pill-hover-border: var(--border-strong);
+  --header-control-bg: color-mix(in oklab, var(--nav-text) 10%, transparent);
+  --header-control-border: color-mix(in oklab, var(--nav-text) 22%, transparent);
+  --header-control-bg-strong: color-mix(in oklab, var(--nav-text) 18%, transparent);
+  --header-control-border-strong: color-mix(in oklab, var(--nav-text) 34%, transparent);
+  --header-focus-border: color-mix(in oklab, var(--nav-text) 70%, transparent);
+  --header-focus-ring: color-mix(in oklab, var(--nav-text) 22%, transparent);
+  --header-input-bg: var(--surface-soft);
+  --header-input-border: var(--border-strong);
+  --stage-bg: #020617;
 
   --page-bg: var(--bg);
   --text-h: var(--text);
   --card: var(--surface);
-  --code-bg: color-mix(in oklab, var(--surface) 88%, #000);
-  --social-bg: color-mix(in oklab, var(--surface) 88%, #000);
-  --primary-dark: color-mix(in oklab, var(--primary) 72%, #000);
+  --card-bg: var(--surface);
+  --code-bg: var(--surface-soft);
+  --social-bg: var(--surface-soft);
   --primary-muted: color-mix(in oklab, var(--primary) 78%, #000);
 
   --accent: var(--primary);

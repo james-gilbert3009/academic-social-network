@@ -19,10 +19,10 @@ const menuPanelStyle = {
   marginTop: 8,
   zIndex: 20,
   minWidth: 200,
-  background: "var(--card-bg, #fff)",
-  border: "1px solid rgba(0,0,0,0.08)",
+  background: "var(--surface)",
+  border: "1px solid var(--border)",
   borderRadius: 8,
-  boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+  boxShadow: "var(--shadow-float)",
   padding: 4,
 };
 
