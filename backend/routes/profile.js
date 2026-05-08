@@ -87,6 +87,12 @@ router.get("/me", requireAuth, async (req, res) => {
 
 // GET /api/profile/:userId
 // Public-ish profile view for authenticated users (no password).
+//
+// When viewing another user the response is gated by the global block
+// relation. If either side has blocked the other we strip the response
+// down to a minimal identity card and add `isBlocked` / `isBlockedByMe` /
+// `hasBlockedMe` flags so the frontend can render a "restricted" view
+// without ever seeing bio, followers, etc.
 router.get("/:userId", requireAuth, async (req, res) => {
   try {
     const viewingUserId = String(req.params.userId || "");
@@ -94,13 +100,42 @@ router.get("/:userId", requireAuth, async (req, res) => {
 
     const [user, me] = await Promise.all([
       User.findById(viewingUserId).select("-password"),
-      User.findById(currentUserId).select("followers following"),
+      User.findById(currentUserId).select("followers following blockedUsers"),
     ]);
 
     if (!user) return res.status(404).json({ message: "User not found" });
     if (!me) return res.status(404).json({ message: "Current user not found" });
 
+    const isOwnProfile = viewingUserId === currentUserId;
+
+    // Own profile is never restricted, even if some weird state put your
+    // own id in your own block list — restricting yourself would be a
+    // dead-end UI.
+    if (!isOwnProfile) {
+      const myBlocked = (me.blockedUsers || []).map((id) => String(id));
+      const theirBlocked = (user.blockedUsers || []).map((id) => String(id));
+      const isBlockedByMe = myBlocked.includes(viewingUserId);
+      const hasBlockedMe = theirBlocked.includes(currentUserId);
+
+      if (isBlockedByMe || hasBlockedMe) {
+        return res.json({
+          user: {
+            _id: user._id,
+            name: user.name,
+            username: user.username,
+            role: user.role,
+            profileImage: user.profileImage,
+            isBlocked: true,
+            isBlockedByMe,
+            hasBlockedMe,
+          },
+        });
+      }
+    }
+
     const safeUser = user.toObject();
+    // Never leak the block list of another user back to the client.
+    delete safeUser.blockedUsers;
     safeUser.followersCount = Array.isArray(safeUser.followers) ? safeUser.followers.length : 0;
     safeUser.followingCount = Array.isArray(safeUser.following) ? safeUser.following.length : 0;
 
@@ -110,6 +145,9 @@ router.get("/:userId", requireAuth, async (req, res) => {
     safeUser.isFollowing = meFollowing.includes(viewingUserId);
     safeUser.isFollower = meFollowers.includes(viewingUserId);
     safeUser.isFriend = Boolean(safeUser.isFollowing && safeUser.isFollower);
+    safeUser.isBlocked = false;
+    safeUser.isBlockedByMe = false;
+    safeUser.hasBlockedMe = false;
 
     if (Array.isArray(safeUser.followers) && Array.isArray(safeUser.following)) {
       const followersSet = new Set(safeUser.followers.map((id) => String(id)));

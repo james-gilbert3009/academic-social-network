@@ -11,6 +11,7 @@ import userRoutes from "./routes/users.js";
 import postsRoutes from "./routes/posts.js";
 import notificationsRoutes from "./routes/notifications.js";
 import tsiEventsRoutes from "./routes/tsiEvents.js";
+import messagesRoutes from "./routes/messages.js";
 
 dotenv.config();
 
@@ -53,6 +54,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/posts", postsRoutes);
 app.use("/api/notifications", notificationsRoutes);
 app.use("/api/tsi-events", tsiEventsRoutes);
+app.use("/api/messages", messagesRoutes);
 
 mongoose
   .connect(process.env.MONGO_URI)

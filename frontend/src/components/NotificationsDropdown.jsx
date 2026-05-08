@@ -1,17 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaBell } from "react-icons/fa";
 
-import { API_BASE_URL } from "../api";
 import { getNotifications, markAllNotificationsRead, markNotificationRead } from "../api/notifications";
+import { Bell, ICON_SIZE } from "../utils/icons";
+import ClickableAvatar from "./ClickableAvatar";
 import timeAgo from "../utils/timeAgo";
-
-function avatarSrc(profileImage) {
-  if (!profileImage) return "";
-  const value = String(profileImage);
-  if (value.startsWith("/uploads")) return `${API_BASE_URL}${value}`;
-  return value;
-}
 
 function getNotificationText(n) {
   const senderName = n?.sender?.name || n?.sender?.username || "Someone";
@@ -28,6 +21,8 @@ function getNotificationText(n) {
       return `${senderName} commented on your post`;
     case "post":
       return `${senderName} created a new post`;
+    case "message_request":
+      return `${senderName} sent you a message request`;
     default:
       return "New notification";
   }
@@ -124,7 +119,22 @@ export default function NotificationsDropdown() {
     const senderId = n?.sender?._id || n?.sender;
 
     if (n.type === "follow" || n.type === "follow_back" || n.type === "friend") {
-      if (senderId) navigate(`/profile/${senderId}`);
+      // Tag the navigation with `focusProfileCard` so Profile.jsx scrolls
+      // back to the top of the card on arrival — otherwise clicking a
+      // notification while a previous Profile view was scrolled into a
+      // posts grid would silently land in the new user's posts.
+      if (senderId) navigate(`/profile/${senderId}`, { state: { focusProfileCard: true } });
+      setOpen(false);
+      return;
+    }
+
+    if (n.type === "message_request") {
+      const conversationId = n?.conversation?._id || n?.conversation;
+      if (conversationId) {
+        navigate(`/messages/${conversationId}`, { state: { openRequest: true } });
+      } else {
+        navigate("/messages");
+      }
       setOpen(false);
       return;
     }
@@ -151,8 +161,9 @@ export default function NotificationsDropdown() {
         aria-expanded={open}
         aria-label="Notifications"
         title="Notifications"
+        data-tooltip="Notifications"
       >
-        <FaBell size={18} aria-hidden />
+        <Bell size={ICON_SIZE.lg} aria-hidden />
         {showBadge ? (
           <span className="notif__badge">
             {unreadCount}
@@ -201,7 +212,6 @@ export default function NotificationsDropdown() {
             {(notifications || []).map((n) => {
               const unread = !n?.isRead;
               const senderName = n?.sender?.name || n?.sender?.username || "User";
-              const senderAvatar = avatarSrc(n?.sender?.profileImage);
               return (
                 <button
                   key={n._id}
@@ -210,19 +220,11 @@ export default function NotificationsDropdown() {
                   className={`notif__item ${unread ? "notif__item--unread" : ""}`}
                 >
                   <div className="notif__itemRow">
-                    <div className="notif__avatarWrap" aria-hidden="true">
-                      {senderAvatar ? (
-                        <img
-                          className="notif__avatar"
-                          src={senderAvatar}
-                          alt=""
-                          loading="lazy"
-                          onError={(e) => {
-                            e.currentTarget.style.display = "none";
-                          }}
-                        />
-                      ) : null}
-                    </div>
+                    <ClickableAvatar
+                      user={n?.sender}
+                      className="notif__avatarWrap"
+                      imgClassName="notif__avatar"
+                    />
 
                     <div className="notif__content">
                       <div className="notif__headline">

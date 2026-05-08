@@ -2,21 +2,22 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { addComment, deleteComment, toggleLike } from "../api/posts";
+import ClickableAvatar from "./ClickableAvatar";
 import ConfirmDialog from "./ConfirmDialog";
 import RoleBadge from "./RoleBadge";
 import timeAgo from "../utils/timeAgo";
 import {
-  FaBook,
-  FaBullhorn,
-  FaCalendarAlt,
-  FaComment,
-  FaComments,
-  FaFlask,
-  FaHeart,
-  FaQuestionCircle,
-  FaRegFileAlt,
-  FaRegHeart,
-} from "react-icons/fa";
+  BookOpenText,
+  CalendarDays,
+  CircleQuestionMark,
+  FileText,
+  FlaskConical,
+  Heart,
+  ICON_SIZE,
+  Megaphone,
+  MessageCircle,
+  MessagesSquare,
+} from "../utils/icons";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
@@ -30,12 +31,12 @@ const CATEGORY_LABELS = {
 };
 
 const CATEGORY_ICONS = {
-  question: FaQuestionCircle,
-  research: FaFlask,
-  announcement: FaBullhorn,
-  study: FaBook,
-  event: FaCalendarAlt,
-  general: FaRegFileAlt,
+  question: CircleQuestionMark,
+  research: FlaskConical,
+  announcement: Megaphone,
+  study: BookOpenText,
+  event: CalendarDays,
+  general: FileText,
 };
 
 function uploadUrl(path) {
@@ -78,9 +79,6 @@ export default function PostDetailsModal({ post, currentUser, onClose, onPostUpd
 
   const author = post.author || {};
   const authorId = typeof post.author === "object" && post.author !== null ? post.author._id : post.author;
-  const avatarSrc =
-    uploadUrl(author.profileImage) ||
-    `https://api.dicebear.com/8.x/initials/svg?seed=${encodeURIComponent(author.name || "User")}`;
 
   const likesCount = post.likes?.length || 0;
   const commentsCount = post.comments?.length || 0;
@@ -163,7 +161,11 @@ export default function PostDetailsModal({ post, currentUser, onClose, onPostUpd
             className="postDetailsModal__author"
             onClick={() => {
               if (!authorId) return;
-              navigate(`/profile/${authorId}`);
+              // Match the rest of the app: every profile entry point
+              // tells Profile.jsx to land at the profile card.
+              navigate(`/profile/${authorId}`, {
+                state: { focusProfileCard: true },
+              });
               onClose?.();
             }}
             style={{
@@ -175,7 +177,11 @@ export default function PostDetailsModal({ post, currentUser, onClose, onPostUpd
               width: "100%",
             }}
           >
-            <img className="postDetailsModal__authorAvatar" src={avatarSrc} alt="" />
+            <ClickableAvatar
+              user={author}
+              currentUserId={currentUser?._id}
+              imgClassName="postDetailsModal__authorAvatar"
+            />
             <div>
               <div
                 style={{
@@ -208,7 +214,7 @@ export default function PostDetailsModal({ post, currentUser, onClose, onPostUpd
 
           <div style={{ marginBottom: 10 }}>
             <span className={`postCategoryBadge postCategoryBadge--${categoryKey}`}>
-              <CategoryIcon style={{ marginRight: 6 }} aria-hidden="true" />
+              <CategoryIcon size={ICON_SIZE.sm} style={{ marginRight: 6 }} aria-hidden="true" />
               {categoryLabel}
             </span>
           </div>
@@ -222,11 +228,11 @@ export default function PostDetailsModal({ post, currentUser, onClose, onPostUpd
           <div className="postDetailsModal__engagement">
             <div className="postDetailsModal__stats" aria-live="polite">
               <span>
-                <FaRegHeart size={13} aria-hidden />
+                <Heart size={ICON_SIZE.sm} aria-hidden />
                 {likesCount} {likesCount === 1 ? "like" : "likes"}
               </span>
               <span>
-                <FaComment size={13} aria-hidden />
+                <MessageCircle size={ICON_SIZE.sm} aria-hidden />
                 {commentsCount} {commentsCount === 1 ? "comment" : "comments"}
               </span>
             </div>
@@ -242,15 +248,14 @@ export default function PostDetailsModal({ post, currentUser, onClose, onPostUpd
             >
               {likeBusy ? (
                 "…"
-              ) : liked ? (
-                <>
-                  <FaHeart size={14} aria-hidden />
-                  Unlike
-                </>
               ) : (
                 <>
-                  <FaRegHeart size={14} aria-hidden />
-                  Like
+                  <Heart
+                    size={ICON_SIZE.sm}
+                    aria-hidden
+                    fill={liked ? "currentColor" : "none"}
+                  />
+                  {liked ? "Unlike" : "Like"}
                 </>
               )}
             </button>
@@ -260,7 +265,7 @@ export default function PostDetailsModal({ post, currentUser, onClose, onPostUpd
           {error ? <div className="alert alertError" style={{ marginBottom: 12 }}>{error}</div> : null}
 
           <div className="postDetailsModal__sectionTitle postDetailsModal__sectionTitle--withIcon" id="comments-heading">
-            <FaComments size={12} aria-hidden />
+            <MessagesSquare size={ICON_SIZE.sm} aria-hidden />
             Comments
           </div>
           <div className="postDetailsModalComments" role="region" aria-labelledby="comments-heading">

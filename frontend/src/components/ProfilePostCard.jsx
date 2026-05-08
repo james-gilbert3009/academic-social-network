@@ -1,15 +1,16 @@
 import { API_BASE_URL } from "../api";
 import timeAgo from "../utils/timeAgo";
 import {
-  FaBook,
-  FaBullhorn,
-  FaCalendarAlt,
-  FaComment,
-  FaFlask,
-  FaQuestionCircle,
-  FaRegFileAlt,
-  FaRegHeart,
-} from "react-icons/fa";
+  BookOpenText,
+  CalendarDays,
+  CircleQuestionMark,
+  FileText,
+  FlaskConical,
+  Heart,
+  ICON_SIZE,
+  Megaphone,
+  MessageCircle,
+} from "../utils/icons";
 
 const CATEGORY_LABELS = {
   question: "Question",
@@ -21,12 +22,12 @@ const CATEGORY_LABELS = {
 };
 
 const CATEGORY_ICONS = {
-  question: FaQuestionCircle,
-  research: FaFlask,
-  announcement: FaBullhorn,
-  study: FaBook,
-  event: FaCalendarAlt,
-  general: FaRegFileAlt,
+  question: CircleQuestionMark,
+  research: FlaskConical,
+  announcement: Megaphone,
+  study: BookOpenText,
+  event: CalendarDays,
+  general: FileText,
 };
 
 function imageSrc(post) {
@@ -95,11 +96,11 @@ export default function ProfilePostCard({ post, currentUserId, onClick, onEdit, 
 
         <div className="muted" style={{ fontSize: 13, display: "flex", gap: 10, flexWrap: "wrap" }}>
           <span className="profilePostCard__metaItem">
-            <FaRegHeart size={12} aria-hidden />
+            <Heart size={ICON_SIZE.sm} aria-hidden />
             Likes: {likeCount}
           </span>
           <span className="profilePostCard__metaItem">
-            <FaComment size={12} aria-hidden />
+            <MessageCircle size={ICON_SIZE.sm} aria-hidden />
             Comments: {commentCount}
           </span>
           {createdLabel ? <span>{createdLabel}</span> : null}

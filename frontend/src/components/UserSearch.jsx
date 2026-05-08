@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "../api";
 import { searchUsers } from "../api/users";
 import RoleBadge from "./RoleBadge";
-import { FaFilter, FaSearch } from "react-icons/fa";
+import { Filter, Search, ICON_SIZE } from "../utils/icons";
 
 function profileImageSrc(profileImage) {
   if (!profileImage) return null;
@@ -55,7 +55,10 @@ export default function UserSearch() {
     if (!userId) return;
     setQuery("");
     setUsers([]);
-    navigate(`/profile/${userId}`);
+    // `focusProfileCard` keeps the Profile page consistent: it always
+    // lands at the profile card on arrival regardless of where the
+    // previous Profile view was scrolled.
+    navigate(`/profile/${userId}`, { state: { focusProfileCard: true } });
   }
 
   function clearSearch() {
@@ -82,7 +85,7 @@ export default function UserSearch() {
           pointerEvents: "none",
         }}
       >
-        <FaSearch size={14} />
+        <Search size={ICON_SIZE.sm} aria-hidden />
       </span>
       <input
         ref={inputRef}
@@ -127,7 +130,7 @@ export default function UserSearch() {
             opacity: 0.9,
           }}
         >
-          <FaFilter size={14} />
+          <Filter size={ICON_SIZE.sm} aria-hidden />
         </span>
 
         <select

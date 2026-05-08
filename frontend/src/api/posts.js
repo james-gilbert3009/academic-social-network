@@ -8,6 +8,10 @@ export function getPostsByUser(userId) {
   return api.get(`/api/posts/user/${userId}`);
 }
 
+export function getPostById(postId) {
+  return api.get(`/api/posts/${postId}`);
+}
+
 export function createPost(formData) {
   return api.post("/api/posts", formData);
 }

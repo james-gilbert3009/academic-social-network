@@ -56,7 +56,9 @@ export default function FollowListModal({
   function handleOpenProfile(userId) {
     if (!userId) return;
     onClose?.();
-    navigate(`/profile/${userId}`);
+    // Always arrive at the top of the profile card — see Profile.jsx
+    // for how `focusProfileCard` is consumed.
+    navigate(`/profile/${userId}`, { state: { focusProfileCard: true } });
   }
 
   return (

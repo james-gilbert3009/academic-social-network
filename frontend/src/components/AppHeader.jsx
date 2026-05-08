@@ -1,8 +1,33 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaBars, FaCog, FaMoon, FaSearch, FaSignOutAlt, FaSun, FaTimes, FaUser } from "react-icons/fa";
+import {
+  House,
+  ICON_SIZE,
+  LogOut,
+  Menu,
+  MessageCircle,
+  Moon,
+  Search,
+  Settings,
+  Sun,
+  UserRound,
+  X,
+} from "../utils/icons";
 import { API_BASE_URL, setAuthToken } from "../api";
+import { getUnreadMessageCount } from "../api/messages";
 import { getStoredTheme, toggleTheme } from "../utils/theme";
+import BlockedUsersModal from "./BlockedUsersModal";
+
+/** Polling cadence for the AppHeader's unread message count (ms). */
+const UNREAD_POLL_MS = 12_000;
+
+/** "99+" overflow rule used by the badge. */
+function formatUnreadBadge(count) {
+  const n = Number(count) || 0;
+  if (n <= 0) return "";
+  if (n > 99) return "99+";
+  return String(n);
+}
 
 function profileThumbSrc(user) {
   if (!user) return "";
@@ -18,15 +43,18 @@ function profileThumbSrc(user) {
 function HeaderProfileGlyph({ currentUser, iconSize }) {
   const src = profileThumbSrc(currentUser);
   if (!src) {
-    return <FaUser size={iconSize} aria-hidden />;
+    return <UserRound size={iconSize} aria-hidden />;
   }
+  // The avatar size scales loosely with the icon size so it fits both the
+  // compact icon-only nav button (~28px) and the larger drawer header (~32px).
+  const dim = Math.max(24, Math.min(32, Number(iconSize) >= 18 ? 28 : 32));
   return (
     <img
       className="app-header__profileThumb"
       src={src}
       alt=""
-      width={32}
-      height={32}
+      width={dim}
+      height={dim}
       decoding="sync"
     />
   );
@@ -55,7 +83,16 @@ export default function AppHeader({
   const [searchOpen, setSearchOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
+  const [unreadChats, setUnreadChats] = useState(0);
+  const [blockedModalOpen, setBlockedModalOpen] = useState(false);
   const settingsWrapRef = useRef(null);
+
+  const isAuthenticated = Boolean(currentUser);
+  const unreadBadgeText = formatUnreadBadge(unreadChats);
+  const unreadAriaLabel =
+    unreadChats > 0
+      ? `Messages — ${unreadChats} unread ${unreadChats === 1 ? "chat" : "chats"}`
+      : "Messages";
 
   const effectiveShowProfileActions = Boolean(showProfileActions);
   const effectiveOnEditProfile = effectiveShowProfileActions
@@ -89,6 +126,11 @@ export default function AppHeader({
 
   function goFeed() {
     navigate("/feed");
+    closeOverlays();
+  }
+
+  function goMessages() {
+    navigate("/messages");
     closeOverlays();
   }
 
@@ -126,6 +168,12 @@ export default function AppHeader({
     navigate("/profile", { state: { openDeleteAccount: true } });
   }
 
+  function openBlockedUsers() {
+    closeSettings();
+    setMenuOpen(false);
+    setBlockedModalOpen(true);
+  }
+
   function toggleDarkMode() {
     const next = toggleTheme();
     setDarkMode(next === "dark");
@@ -149,9 +197,63 @@ export default function AppHeader({
     };
   }, [menuOpen]);
 
+  // Mark the body while the mobile drawer is open so page-level fixed
+  // elements (e.g. the Feed bottom nav) can hide themselves and stop
+  // overlapping the drawer. We toggle a class instead of inline styles so
+  // the rule lives next to the rest of the drawer styling in CSS.
+  useEffect(() => {
+    document.body.classList.toggle("mobile-drawer-open", menuOpen);
+    return () => {
+      document.body.classList.remove("mobile-drawer-open");
+    };
+  }, [menuOpen]);
+
   useEffect(() => {
     setDarkMode(getStoredTheme() === "dark");
   }, []);
+
+  // Unread message count: poll every UNREAD_POLL_MS while a user is signed in,
+  // and listen for "messages:unread-refresh" so the Messages page can trigger
+  // an immediate re-fetch when it marks a conversation read or accepts/declines
+  // a request. Skips work entirely for logged-out users.
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setUnreadChats(0);
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    async function loadUnread() {
+      try {
+        const res = await getUnreadMessageCount();
+        if (cancelled) return;
+        setUnreadChats(Number(res?.data?.unreadChats || 0));
+      } catch {
+        // Silent: polling will retry on the next tick.
+      }
+    }
+
+    loadUnread();
+    const intervalId = window.setInterval(loadUnread, UNREAD_POLL_MS);
+
+    function onRefresh() {
+      loadUnread();
+    }
+    function onVisibility() {
+      if (document.visibilityState === "visible") loadUnread();
+    }
+
+    window.addEventListener("messages:unread-refresh", onRefresh);
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+      window.removeEventListener("messages:unread-refresh", onRefresh);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (!settingsOpen) return;
@@ -201,12 +303,37 @@ export default function AppHeader({
               type="button"
               className={
                 activePage === "feed"
-                  ? "app-nav__link app-nav__link--active"
-                  : "app-nav__link"
+                  ? "app-nav__link app-nav__link--icon app-nav__link--active"
+                  : "app-nav__link app-nav__link--icon"
               }
               onClick={() => navigate("/feed")}
+              aria-label="Feed"
+              title="Feed"
+              data-tooltip="Feed"
             >
-              Feed
+              <House size={ICON_SIZE.lg} aria-hidden />
+            </button>
+            <button
+              type="button"
+              className={
+                activePage === "messages"
+                  ? "app-nav__link app-nav__link--icon app-nav__link--active"
+                  : "app-nav__link app-nav__link--icon"
+              }
+              onClick={() => navigate("/messages")}
+              aria-label={unreadAriaLabel}
+              title="Messages"
+              data-tooltip="Messages"
+            >
+              <MessageCircle size={ICON_SIZE.lg} aria-hidden />
+              {unreadBadgeText ? (
+                <span
+                  className="appHeaderUnreadBadge"
+                  aria-hidden="true"
+                >
+                  {unreadBadgeText}
+                </span>
+              ) : null}
             </button>
           </nav>
           {search}
@@ -219,13 +346,15 @@ export default function AppHeader({
           <div className="app-header__settingsWrap" ref={settingsWrapRef}>
             <button
               type="button"
-              className="icon-button app-header__settingsBtn"
+              className="app-nav__link app-nav__link--icon app-header__settingsBtn"
               aria-haspopup="menu"
               aria-expanded={settingsOpen}
               aria-label={settingsOpen ? "Close settings" : "Open settings"}
+              title="Settings"
+              data-tooltip="Settings"
               onClick={() => setSettingsOpen((v) => !v)}
             >
-              <FaCog size={16} aria-hidden />
+              <Settings size={ICON_SIZE.lg} aria-hidden />
             </button>
 
             {settingsOpen ? (
@@ -233,6 +362,17 @@ export default function AppHeader({
                 {canEdit ? (
                   <button type="button" className="app-header__settingsItem" role="menuitem" onClick={editProfile}>
                     Edit Profile
+                  </button>
+                ) : null}
+
+                {canShowAccountActions ? (
+                  <button
+                    type="button"
+                    className="app-header__settingsItem"
+                    role="menuitem"
+                    onClick={openBlockedUsers}
+                  >
+                    Blocked users
                   </button>
                 ) : null}
 
@@ -259,11 +399,11 @@ export default function AppHeader({
                   <span className={darkMode ? "app-header__themePill app-header__themePill--on" : "app-header__themePill"}>
                     {darkMode ? (
                       <>
-                        <FaMoon size={12} aria-hidden /> On
+                        <Moon size={ICON_SIZE.sm} aria-hidden /> On
                       </>
                     ) : (
                       <>
-                        <FaSun size={12} aria-hidden /> Off
+                        <Sun size={ICON_SIZE.sm} aria-hidden /> Off
                       </>
                     )}
                   </span>
@@ -276,17 +416,25 @@ export default function AppHeader({
             type="button"
             className={
               activePage === "profile"
-                ? "app-nav__link app-nav__link--active"
-                : "app-nav__link"
+                ? "app-nav__link app-nav__link--icon app-nav__link--active"
+                : "app-nav__link app-nav__link--icon"
             }
             onClick={() => navigate("/profile")}
+            aria-label="Profile"
+            title="Profile"
+            data-tooltip="Profile"
           >
-            <HeaderProfileGlyph currentUser={currentUser} iconSize={14} />
-            Profile
+            <HeaderProfileGlyph currentUser={currentUser} iconSize={20} />
           </button>
-          <button className="secondary-button btn-compact btnWithIcon" type="button" onClick={logout}>
-            <FaSignOutAlt size={14} aria-hidden />
-            Logout
+          <button
+            type="button"
+            className="app-nav__link app-nav__link--icon app-nav__link--logout"
+            onClick={logout}
+            aria-label="Logout"
+            title="Logout"
+            data-tooltip="Logout"
+          >
+            <LogOut size={ICON_SIZE.lg} aria-hidden />
           </button>
         </div>
 
@@ -303,7 +451,7 @@ export default function AppHeader({
                 setMenuOpen(false);
               }}
             >
-              {searchOpen ? <FaTimes size={16} aria-hidden /> : <FaSearch size={16} aria-hidden />}
+              {searchOpen ? <X size={ICON_SIZE.md} aria-hidden /> : <Search size={ICON_SIZE.md} aria-hidden />}
             </button>
           ) : null}
           {notifications ? (
@@ -330,7 +478,7 @@ export default function AppHeader({
               setSearchOpen(false);
             }}
           >
-            {menuOpen ? <FaTimes size={18} aria-hidden /> : <FaBars size={18} aria-hidden />}
+            {menuOpen ? <X size={ICON_SIZE.lg} aria-hidden /> : <Menu size={ICON_SIZE.lg} aria-hidden />}
           </button>
         </div>
       </div>
@@ -366,7 +514,7 @@ export default function AppHeader({
                 aria-label="Close menu"
                 onClick={() => setMenuOpen(false)}
               >
-                <FaTimes size={16} aria-hidden />
+                <X size={ICON_SIZE.md} aria-hidden />
               </button>
             </div>
             <div className="app-header__drawerContent">
@@ -381,6 +529,27 @@ export default function AppHeader({
                   onClick={goFeed}
                 >
                   Feed
+                </button>
+                <button
+                  type="button"
+                  className={
+                    activePage === "messages"
+                      ? "app-header__drawerLink app-header__drawerLink--active"
+                      : "app-header__drawerLink"
+                  }
+                  onClick={goMessages}
+                  aria-label={unreadAriaLabel}
+                >
+                  <MessageCircle size={ICON_SIZE.md} aria-hidden />
+                  Messages
+                  {unreadBadgeText ? (
+                    <span
+                      className="appHeaderUnreadBadge appHeaderUnreadBadge--inline"
+                      aria-hidden="true"
+                    >
+                      {unreadBadgeText}
+                    </span>
+                  ) : null}
                 </button>
               </nav>
 
@@ -429,6 +598,14 @@ export default function AppHeader({
                       </button>
                     ) : null}
 
+                    <button
+                      type="button"
+                      className="app-header__drawerLink"
+                      onClick={openBlockedUsers}
+                    >
+                      Blocked users
+                    </button>
+
                     {canDelete ? (
                       <button
                         type="button"
@@ -452,13 +629,18 @@ export default function AppHeader({
                 type="button"
                 onClick={logout}
               >
-                <FaSignOutAlt size={14} aria-hidden />
+                <LogOut size={ICON_SIZE.sm} aria-hidden />
                 Logout
               </button>
             </div>
           </div>
         </>
       ) : null}
+
+      <BlockedUsersModal
+        open={blockedModalOpen}
+        onClose={() => setBlockedModalOpen(false)}
+      />
     </header>
   );
 }

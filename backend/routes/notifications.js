@@ -13,6 +13,10 @@ router.get("/", requireAuth, async (req, res) => {
       .sort({ createdAt: -1 })
       .populate("sender", "name username profileImage role")
       .populate("post", "content image")
+      .populate({
+        path: "conversation",
+        select: "participants status requestedBy requestedTo",
+      })
       .lean();
 
     return res.json({ notifications });

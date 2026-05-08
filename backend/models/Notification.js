@@ -14,12 +14,25 @@ const notificationSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ["follow", "follow_back", "friend", "like", "comment", "post"],
+      enum: [
+        "follow",
+        "follow_back",
+        "friend",
+        "like",
+        "comment",
+        "post",
+        "message_request",
+      ],
       required: true,
     },
     post: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Post",
+      default: null,
+    },
+    conversation: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Conversation",
       default: null,
     },
     commentText: {
@@ -37,4 +50,3 @@ const notificationSchema = new mongoose.Schema(
 );
 
 export default mongoose.model("Notification", notificationSchema);
-

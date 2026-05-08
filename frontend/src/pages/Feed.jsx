@@ -1,16 +1,17 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import {
-  FaPlus,
-  FaLayerGroup,
-  FaQuestionCircle,
-  FaFlask,
-  FaBullhorn,
-  FaBook,
-  FaCalendarAlt,
-  FaRegFileAlt,
-  FaChevronRight,
-} from "react-icons/fa";
+  BookOpenText,
+  CalendarDays,
+  ChevronRight,
+  CircleQuestionMark,
+  FileText,
+  FlaskConical,
+  ICON_SIZE,
+  Layers,
+  Megaphone,
+  Plus,
+} from "../utils/icons";
 
 import { getProfile } from "../api/profile";
 import { deletePost, getPosts, toggleLike, updatePost } from "../api/posts";
@@ -25,13 +26,13 @@ import TsiOfficialFeed from "../components/TsiOfficialFeed.jsx";
 import UserSearch from "../components/UserSearch";
 
 const CATEGORY_ICON_BY_VALUE = {
-  all: FaLayerGroup,
-  question: FaQuestionCircle,
-  research: FaFlask,
-  announcement: FaBullhorn,
-  study: FaBook,
-  event: FaCalendarAlt,
-  general: FaRegFileAlt,
+  all: Layers,
+  question: CircleQuestionMark,
+  research: FlaskConical,
+  announcement: Megaphone,
+  study: BookOpenText,
+  event: CalendarDays,
+  general: FileText,
 };
 
 export default function Feed() {
@@ -418,7 +419,7 @@ export default function Feed() {
             aria-controls="feed-category-sidebar"
             aria-label="Post categories"
           >
-            <FaLayerGroup aria-hidden="true" />
+            <Layers size={ICON_SIZE.sm} aria-hidden="true" />
             Categories
           </button>
         ) : null}
@@ -427,7 +428,7 @@ export default function Feed() {
           type="button"
           onClick={openCreatePostModal}
         >
-          <FaPlus aria-hidden="true" />
+          <Plus size={ICON_SIZE.sm} aria-hidden="true" />
           Create new
         </button>
       </div>
@@ -479,7 +480,7 @@ export default function Feed() {
               aria-pressed={active}
             >
               <span className="categoryFilterIcon">
-                <Icon aria-hidden="true" />
+                <Icon size={ICON_SIZE.lg} aria-hidden="true" />
               </span>
               <span className="categoryFilterText">{opt.label}</span>
             </button>
@@ -495,7 +496,8 @@ export default function Feed() {
             title={categorySidebarPinnedOpen ? "Collapse categories" : "Expand categories"}
             aria-label={categorySidebarPinnedOpen ? "Collapse categories" : "Expand categories"}
           >
-            <FaChevronRight
+            <ChevronRight
+              size={ICON_SIZE.md}
               aria-hidden="true"
               className={
                 categorySidebarPinnedOpen

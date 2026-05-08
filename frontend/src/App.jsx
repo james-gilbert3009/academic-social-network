@@ -8,6 +8,7 @@ import RequireProfileComplete from "./components/RequireProfileComplete.jsx";
 import Feed from "./pages/Feed.jsx";
 import ForgotPassword from "./pages/ForgotPassword.jsx";
 import Login from "./pages/Login.jsx";
+import Messages from "./pages/Messages.jsx";
 import Profile from "./pages/Profile.jsx";
 import ProfileSetup from "./pages/ProfileSetup.jsx";
 import Register from "./pages/Register.jsx";
@@ -38,6 +39,9 @@ export default function App() {
 
         <Route element={<RequireProfileComplete />}>
           <Route path="/feed" element={<Feed />} />
+          <Route path="/messages" element={<Messages />} />
+          <Route path="/messages/new/:newUserId" element={<Messages />} />
+          <Route path="/messages/:conversationId" element={<Messages />} />
         </Route>
       </Route>
 

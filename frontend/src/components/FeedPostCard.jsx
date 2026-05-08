@@ -3,18 +3,22 @@ import { useNavigate } from "react-router-dom";
 import timeAgo from "../utils/timeAgo";
 import RoleBadge from "./RoleBadge";
 import {
-  FaBook,
-  FaBullhorn,
-  FaCalendarAlt,
-  FaComment,
-  FaComments,
-  FaFlask,
-  FaHeart,
-  FaPlus,
-  FaQuestionCircle,
-  FaRegFileAlt,
-  FaRegHeart,
-} from "react-icons/fa";
+  BookOpenText,
+  CalendarDays,
+  CircleQuestionMark,
+  EllipsisVertical,
+  FileText,
+  FlaskConical,
+  Heart,
+  ICON_SIZE,
+  Megaphone,
+  MessageCircle,
+  MessagesSquare,
+  Plus,
+  Share2,
+} from "../utils/icons";
+import SharePostModal from "./SharePostModal";
+import ClickableAvatar from "./ClickableAvatar";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
@@ -28,12 +32,12 @@ const CATEGORY_LABELS = {
 };
 
 const CATEGORY_ICONS = {
-  question: FaQuestionCircle,
-  research: FaFlask,
-  announcement: FaBullhorn,
-  study: FaBook,
-  event: FaCalendarAlt,
-  general: FaRegFileAlt,
+  question: CircleQuestionMark,
+  research: FlaskConical,
+  announcement: Megaphone,
+  study: BookOpenText,
+  event: CalendarDays,
+  general: FileText,
 };
 
 function uploadUrl(path) {
@@ -74,11 +78,38 @@ export default function FeedPostCard({
 }) {
   const navigate = useNavigate();
   const [captionExpanded, setCaptionExpanded] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const actionsWrapRef = useRef(null);
   const author = post.author || {};
   const authorId = typeof post.author === "object" ? post.author?._id : post.author;
   const isOwner = currentUser?._id && authorId && String(currentUser._id) === String(authorId);
   const canShowConnect = Boolean(currentUser?._id && authorId && !isOwner);
+
+  /**
+   * Single source of truth for "open this post's author profile".
+   *
+   * Used by every clickable identity surface inside the post card (avatar,
+   * name, username, time row). Always:
+   *   1. cancels the click so it can't bubble up to a future card-level
+   *      handler (e.g. opening post details by clicking the card),
+   *   2. routes to `/profile` for the current user and `/profile/:id` for
+   *      everyone else — never to `/profile/:myId`, which would behave
+   *      differently from the navbar profile link,
+   *   3. tags the navigation with `focusProfileCard` so Profile.jsx
+   *      scrolls back up to the profile card instead of leaving the page
+   *      scrolled into someone else's posts grid from a previous visit.
+   */
+  function handleOpenAuthorProfile(event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    if (!authorId) return;
+    const isMe = currentUser?._id && String(authorId) === String(currentUser._id);
+    navigate(isMe ? "/profile" : `/profile/${authorId}`, {
+      state: { focusProfileCard: true },
+    });
+  }
 
   const isFollowing = Boolean(author?.isFollowing);
   const isFollower = Boolean(author?.isFollower);
@@ -93,10 +124,6 @@ export default function FeedPostCard({
         : "Connect";
 
   const shouldShowPlusIcon = !isFollowing && !isFriend;
-
-  const avatarSrc =
-    uploadUrl(author.profileImage) ||
-    `https://api.dicebear.com/8.x/initials/svg?seed=${encodeURIComponent(author.name || "User")}`;
 
   const likeCount = post.likes?.length || 0;
   const commentCount = post.comments?.length || 0;
@@ -142,19 +169,12 @@ export default function FeedPostCard({
     <article className="card feedPostCard">
       <header className="feedPostCard__header">
         <div className="feedPostHeader">
-          <button
-            type="button"
+          <ClickableAvatar
+            user={author}
+            currentUserId={currentUser?._id}
             className="feedPostAuthorAvatar"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              if (!authorProfileId) return;
-              navigate(`/profile/${authorProfileId}`);
-            }}
-            aria-label={`Open ${author.name || author.username || "member"} profile`}
-          >
-            <img className="feedPostCard__avatar" src={avatarSrc} alt="" />
-          </button>
+            imgClassName="feedPostCard__avatar"
+          />
 
           <div
             className={
@@ -166,12 +186,7 @@ export default function FeedPostCard({
             <button
               type="button"
               className="feedPostAuthorMetaProfile"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                if (!authorProfileId) return;
-                navigate(`/profile/${authorProfileId}`);
-              }}
+              onClick={handleOpenAuthorProfile}
               style={{ cursor: authorProfileId ? "pointer" : "default" }}
               aria-label={`Open ${author.name || author.username || "member"} profile`}
             >
@@ -205,7 +220,7 @@ export default function FeedPostCard({
                 aria-label={`Connect with ${author.name || author.username || "member"}`}
                 title={connectLabel}
               >
-                {shouldShowPlusIcon ? <FaPlus aria-hidden="true" className="feedPostRelationshipButton__icon" /> : null}
+                {shouldShowPlusIcon ? <Plus size={ICON_SIZE.sm} aria-hidden="true" className="feedPostRelationshipButton__icon" /> : null}
                 <span className="feedPostRelationshipButton__text feedPostRelationshipButton__text--full">
                   {connectLabel}
                 </span>
@@ -228,9 +243,11 @@ export default function FeedPostCard({
                     onToggleActionsMenu?.();
                   }}
                 >
-                  <span aria-hidden="true" className="postCardActions__dots">
-                    ⋮
-                  </span>
+                  <EllipsisVertical
+                    size={ICON_SIZE.lg}
+                    aria-hidden="true"
+                    className="postCardActions__dots"
+                  />
                 </button>
 
                 {actionsMenuOpen ? (
@@ -276,7 +293,7 @@ export default function FeedPostCard({
 
       <div style={{ marginTop: 12 }}>
         <span className={`postCategoryBadge postCategoryBadge--${categoryKey}`}>
-          <CategoryIcon style={{ marginRight: 6 }} aria-hidden="true" />
+          <CategoryIcon size={ICON_SIZE.sm} style={{ marginRight: 6 }} aria-hidden="true" />
           {categoryLabel}
         </span>
       </div>
@@ -328,11 +345,11 @@ export default function FeedPostCard({
       <footer className="feedPostCard__toolbar">
         <div className="feedPostCard__stats" aria-label="Engagement">
           <span>
-            <FaRegHeart size={13} aria-hidden />
+            <Heart size={ICON_SIZE.sm} aria-hidden />
             {likeCount} {likeCount === 1 ? "like" : "likes"}
           </span>
           <span>
-            <FaComment size={13} aria-hidden />
+            <MessageCircle size={ICON_SIZE.sm} aria-hidden />
             {commentCount} {commentCount === 1 ? "comment" : "comments"}
           </span>
         </div>
@@ -343,12 +360,26 @@ export default function FeedPostCard({
             onClick={() => onLike?.(post)}
             disabled={!currentUser}
           >
-            {liked ? <FaHeart size={14} aria-hidden /> : <FaRegHeart size={14} aria-hidden />}
+            <Heart
+              size={ICON_SIZE.sm}
+              aria-hidden
+              fill={liked ? "currentColor" : "none"}
+            />
             {liked ? "Unlike" : "Like"}
           </button>
           <button className="btn btnWithIcon" type="button" onClick={() => onOpenDetails?.(post)}>
-            <FaComment size={14} aria-hidden />
+            <MessageCircle size={ICON_SIZE.sm} aria-hidden />
             Comments
+          </button>
+          <button
+            className="btn btnWithIcon"
+            type="button"
+            onClick={() => setShareOpen(true)}
+            disabled={!currentUser}
+            title="Share"
+          >
+            <Share2 size={ICON_SIZE.sm} aria-hidden />
+            Share
           </button>
         </div>
       </footer>
@@ -374,12 +405,19 @@ export default function FeedPostCard({
               style={{ marginTop: 10 }}
               onClick={() => onOpenDetails?.(post)}
             >
-              <FaComments size={14} aria-hidden />
+              <MessagesSquare size={ICON_SIZE.sm} aria-hidden />
               View all comments
             </button>
           ) : null}
         </div>
       ) : null}
+
+      <SharePostModal
+        open={shareOpen}
+        post={post}
+        me={currentUser}
+        onClose={() => setShareOpen(false)}
+      />
     </article>
   );
 }

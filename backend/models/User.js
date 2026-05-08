@@ -65,6 +65,16 @@ const userSchema = new mongoose.Schema(
       type: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
       default: [],
     },
+    // Global block list. When user A is in user B's `blockedUsers`, neither
+    // of them can see the other's profile details, posts, or messages, and
+    // they cannot follow each other. Blocking is one-directional in the
+    // model but the access checks always look at BOTH users' lists, so the
+    // result is symmetric (whoever blocks first wins). See
+    // `backend/utils/blockHelpers.js` for the canonical helpers.
+    blockedUsers: {
+      type: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+      default: [],
+    },
     isProfileComplete: {
       type: Boolean,
       default: false,

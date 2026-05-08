@@ -5,8 +5,13 @@ import path from "path";
 import User from "../models/User.js";
 import Post from "../models/Post.js";
 import Notification from "../models/Notification.js";
+import Conversation from "../models/Conversation.js";
 import { requireAuth } from "../middleware/auth.js";
 import computeIsProfileComplete from "../utils/isProfileComplete.js";
+import {
+  getBlockedAndBlockerIds,
+  getBlockRelation,
+} from "../utils/blockHelpers.js";
 
 const router = express.Router();
 
@@ -139,6 +144,9 @@ router.delete("/me", requireAuth, async (req, res) => {
 
 // GET /api/users/search?q=keyword
 // Search users by name or username (case-insensitive). Returns safe fields only.
+// Excludes any user the current user has blocked OR who has blocked the
+// current user — blocked users disappear entirely from search results both
+// ways so the block feels mutual to the UI.
 router.get("/search", requireAuth, async (req, res) => {
   try {
     const qRaw = String(req.query?.q || "").trim();
@@ -150,9 +158,12 @@ router.get("/search", requireAuth, async (req, res) => {
     const roleRaw = String(req.query?.role || "").trim().toLowerCase();
     const role = roleRaw && roleRaw !== "all" ? roleRaw : "";
 
+    const hiddenIds = await getBlockedAndBlockerIds(req.user.id);
+
     const query = {
       $or: [{ name: rx }, { username: rx }],
       ...(role ? { role } : {}),
+      ...(hiddenIds.length ? { _id: { $nin: hiddenIds } } : {}),
     };
 
     const users = await User.find(query)
@@ -168,14 +179,44 @@ router.get("/search", requireAuth, async (req, res) => {
   }
 });
 
+// GET /api/users/blocked
+// Returns the list of users the current account has globally blocked. Used
+// by the Settings → "Blocked users" panel and any "manage who I blocked"
+// surface — these are users the current user CHOSE to block, not users who
+// blocked them.
+router.get("/blocked", requireAuth, async (req, res) => {
+  try {
+    const me = await User.findById(req.user.id).select("blockedUsers").lean();
+    const ids = (me?.blockedUsers || []).map((id) => String(id));
+    if (!ids.length) return res.json({ users: [] });
+
+    const users = await User.find({ _id: { $in: ids } })
+      .select("_id name username role profileImage")
+      .sort({ name: 1 });
+
+    return res.json({ users });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ message: "Failed to load blocked users", error: error.message });
+  }
+});
+
 // GET /api/users/:id/followers
-// Return users who follow :id
+// Return users who follow :id (hidden: anyone in a block relation with the
+// caller, so blocked users never show up in the "Followers" list).
 router.get("/:id/followers", requireAuth, async (req, res) => {
   try {
     const user = await User.findById(req.params.id).select("followers");
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    const populated = await User.find({ _id: { $in: user.followers || [] } })
+    const hiddenIds = await getBlockedAndBlockerIds(req.user.id);
+    const filterQuery = {
+      _id: { $in: user.followers || [] },
+      ...(hiddenIds.length ? { _id: { $in: user.followers || [], $nin: hiddenIds } } : {}),
+    };
+
+    const populated = await User.find(filterQuery)
       .select(SAFE_USER_FIELDS)
       .sort({ name: 1 });
 
@@ -186,13 +227,19 @@ router.get("/:id/followers", requireAuth, async (req, res) => {
 });
 
 // GET /api/users/:id/following
-// Return users that :id follows
+// Return users that :id follows (with the same block-aware filter).
 router.get("/:id/following", requireAuth, async (req, res) => {
   try {
     const user = await User.findById(req.params.id).select("following");
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    const populated = await User.find({ _id: { $in: user.following || [] } })
+    const hiddenIds = await getBlockedAndBlockerIds(req.user.id);
+    const filterQuery = {
+      _id: { $in: user.following || [] },
+      ...(hiddenIds.length ? { _id: { $in: user.following || [], $nin: hiddenIds } } : {}),
+    };
+
+    const populated = await User.find(filterQuery)
       .select(SAFE_USER_FIELDS)
       .sort({ name: 1 });
 
@@ -346,6 +393,15 @@ router.put("/:id/follow", requireAuth, async (req, res) => {
     if (!currentUser) return res.status(404).json({ message: "Current user not found" });
     if (!targetUser) return res.status(404).json({ message: "User not found" });
 
+    // Reject follow attempts in either direction when a block is in place.
+    // We compute it from the docs we already loaded so we don't pay an
+    // extra round-trip on the hot path.
+    const myBlocked = (currentUser.blockedUsers || []).map((id) => String(id));
+    const theirBlocked = (targetUser.blockedUsers || []).map((id) => String(id));
+    if (myBlocked.includes(targetId) || theirBlocked.includes(currentUserId)) {
+      return res.status(403).json({ message: "You cannot connect with this user." });
+    }
+
     const alreadyFollowing = (currentUser.following || []).some(
       (id) => String(id) === targetId
     );
@@ -434,6 +490,149 @@ router.put("/:id/follow", requireAuth, async (req, res) => {
     });
   } catch (error) {
     return res.status(500).json({ message: "Failed to toggle follow", error: error.message });
+  }
+});
+
+// PUT /api/users/:id/block
+// Globally block a user: hides their profile / posts / messages from the
+// caller and vice-versa. We use this single endpoint as the canonical block
+// action across the app — Profile "Block" and Messages "Block" both call it.
+//
+// Side-effects are intentional and best-effort:
+//   1. Add target → currentUser.blockedUsers (idempotent).
+//   2. Remove the follow relationship in BOTH directions so a stale follow
+//      can't keep notifying the blocked user about the blocker's activity.
+//   3. Mark every existing conversation between the two as blockedBy the
+//      caller, so the chat UI's existing conversation-level block banner
+//      keeps working without a second source of truth.
+//   4. Delete every notification between the two users (any direction, any
+//      type) so the bell doesn't keep echoing follow / friend / message
+//      requests they were never going to act on anyway.
+router.put("/:id/block", requireAuth, async (req, res) => {
+  try {
+    const targetId = String(req.params.id || "");
+    const currentUserId = String(req.user.id || "");
+
+    if (!targetId) return res.status(400).json({ message: "Missing target user id" });
+    if (targetId === currentUserId) {
+      return res.status(400).json({ message: "You cannot block yourself" });
+    }
+
+    const [currentUser, targetUser] = await Promise.all([
+      User.findById(currentUserId),
+      User.findById(targetId),
+    ]);
+
+    if (!currentUser) return res.status(404).json({ message: "Current user not found" });
+    if (!targetUser) return res.status(404).json({ message: "User not found" });
+
+    const alreadyBlocked = (currentUser.blockedUsers || []).some(
+      (id) => String(id) === targetId
+    );
+    if (!alreadyBlocked) {
+      currentUser.blockedUsers = [
+        ...(currentUser.blockedUsers || []),
+        targetUser._id,
+      ];
+    }
+
+    // Clean up follow relationships both ways so neither sees each other's
+    // future post-to-followers notifications either.
+    currentUser.following = (currentUser.following || []).filter(
+      (id) => String(id) !== targetId
+    );
+    currentUser.followers = (currentUser.followers || []).filter(
+      (id) => String(id) !== targetId
+    );
+    targetUser.following = (targetUser.following || []).filter(
+      (id) => String(id) !== currentUserId
+    );
+    targetUser.followers = (targetUser.followers || []).filter(
+      (id) => String(id) !== currentUserId
+    );
+
+    await Promise.all([currentUser.save(), targetUser.save()]);
+
+    // Block any existing conversation so the chat UI immediately reflects
+    // the new state. Best-effort: never fail the request because of this.
+    try {
+      await Conversation.updateMany(
+        {
+          participants: { $all: [currentUserId, targetId] },
+          blockedBy: { $ne: currentUser._id },
+        },
+        { $addToSet: { blockedBy: currentUser._id } }
+      );
+    } catch (_) {
+      // Intentionally ignore — global block still wins on /send routes.
+    }
+
+    // Wipe notifications between the two users in both directions so the
+    // bell doesn't keep showing stale activity from the blocked user.
+    try {
+      await Notification.deleteMany({
+        $or: [
+          { sender: currentUser._id, recipient: targetUser._id },
+          { sender: targetUser._id, recipient: currentUser._id },
+        ],
+      });
+    } catch (_) {
+      // Best-effort cleanup.
+    }
+
+    return res.json({ blocked: true });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ message: "Failed to block user", error: error.message });
+  }
+});
+
+// PUT /api/users/:id/unblock
+// Reverses a global block. Removes the target from the caller's blockedUsers
+// array AND clears any conversation-level block the caller put in place via
+// the old per-conversation flow. Doesn't restore follow relationships — the
+// user has to re-follow if they want to.
+router.put("/:id/unblock", requireAuth, async (req, res) => {
+  try {
+    const targetId = String(req.params.id || "");
+    const currentUserId = String(req.user.id || "");
+
+    if (!targetId) return res.status(400).json({ message: "Missing target user id" });
+    if (targetId === currentUserId) {
+      return res.status(400).json({ message: "You cannot unblock yourself" });
+    }
+
+    const currentUser = await User.findById(currentUserId);
+    if (!currentUser) {
+      return res.status(404).json({ message: "Current user not found" });
+    }
+
+    currentUser.blockedUsers = (currentUser.blockedUsers || []).filter(
+      (id) => String(id) !== targetId
+    );
+    await currentUser.save();
+
+    // Mirror the unblock onto every conversation between the two — the
+    // caller is the only side that could have set their own conversation
+    // block, so we only pull their id from `blockedBy`.
+    try {
+      await Conversation.updateMany(
+        {
+          participants: { $all: [currentUserId, targetId] },
+          blockedBy: currentUser._id,
+        },
+        { $pull: { blockedBy: currentUser._id } }
+      );
+    } catch (_) {
+      // Best-effort cleanup.
+    }
+
+    return res.json({ blocked: false });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ message: "Failed to unblock user", error: error.message });
   }
 });
 

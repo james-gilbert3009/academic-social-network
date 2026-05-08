@@ -7,6 +7,10 @@ import Post from "../models/Post.js";
 import User from "../models/User.js";
 import Notification from "../models/Notification.js";
 import { requireAuth } from "../middleware/auth.js";
+import {
+  getBlockedAndBlockerIds,
+  getBlockRelation,
+} from "../utils/blockHelpers.js";
 
 const router = express.Router();
 
@@ -74,9 +78,19 @@ function uploadSinglePostImage(req, res, next) {
   });
 }
 
-/** Returns a Mongoose Query (thenable). Must NOT be async — async + return query makes await resolve to docs, breaking .exec(). */
-function getPopulatedPostQuery() {
-  return Post.find()
+/**
+ * Returns a Mongoose Query (thenable). Must NOT be async — async + return
+ * query makes await resolve to docs, breaking .exec().
+ *
+ * Pass a list of author IDs to exclude (e.g. users in a block relation
+ * with the caller). Empty/missing list → no exclusion.
+ */
+function getPopulatedPostQuery(excludeAuthorIds) {
+  const filter =
+    Array.isArray(excludeAuthorIds) && excludeAuthorIds.length
+      ? { author: { $nin: excludeAuthorIds } }
+      : {};
+  return Post.find(filter)
     .sort({ createdAt: -1 })
     .populate("author", "name username profileImage role")
     .populate("comments.user", "name username profileImage role");
@@ -172,11 +186,14 @@ router.post("/", requireAuth, uploadSinglePostImage, async (req, res) => {
 });
 
 // GET /api/posts
-// Get all posts (newest first)
+// Get all posts (newest first). Excludes posts authored by anyone the
+// caller has blocked OR who has blocked the caller — both directions are
+// hidden so the block feels mutual in the feed.
 router.get("/", requireAuth, async (req, res) => {
   try {
+    const blockedIds = await getBlockedAndBlockerIds(req.user.id);
     const [posts, me] = await Promise.all([
-      getPopulatedPostQuery().exec(),
+      getPopulatedPostQuery(blockedIds).exec(),
       User.findById(req.user.id).select("followers following").lean(),
     ]);
 
@@ -189,9 +206,20 @@ router.get("/", requireAuth, async (req, res) => {
 });
 
 // GET /api/posts/user/:userId
-// Get posts by a specific user (newest first)
+// Get posts by a specific user (newest first). When the caller is in a
+// block relation with the target we return [] (instead of 403) so the
+// profile page can still render its restricted card without a network
+// error popup — the empty list is consistent with the restricted profile.
 router.get("/user/:userId", requireAuth, async (req, res) => {
   try {
+    const targetUserId = String(req.params.userId || "");
+    const currentUserId = String(req.user.id || "");
+
+    if (targetUserId && targetUserId !== currentUserId) {
+      const { isBlocked } = await getBlockRelation(currentUserId, targetUserId);
+      if (isBlocked) return res.json({ posts: [] });
+    }
+
     const [posts, me] = await Promise.all([
       Post.find({ author: req.params.userId })
         .sort({ createdAt: -1 })
@@ -204,6 +232,37 @@ router.get("/user/:userId", requireAuth, async (req, res) => {
     return res.json({ posts: enriched });
   } catch (error) {
     return res.status(500).json({ message: "Failed to load user posts" });
+  }
+});
+
+// GET /api/posts/:id
+// Single post (used e.g. when opening a shared post inside Messages so the
+// modal can show fresh likes/comments without redirecting to /feed). 403s
+// if the post's author is in a block relation with the caller.
+router.get("/:id", requireAuth, async (req, res) => {
+  try {
+    const [post, me] = await Promise.all([
+      Post.findById(req.params.id)
+        .populate("author", "name username profileImage role")
+        .populate("comments.user", "name username profileImage role"),
+      User.findById(req.user.id).select("followers following").lean(),
+    ]);
+
+    if (!post) return res.status(404).json({ message: "Post not found" });
+
+    const authorId = post?.author?._id ? String(post.author._id) : "";
+    const currentUserId = String(req.user.id || "");
+    if (authorId && authorId !== currentUserId) {
+      const { isBlocked } = await getBlockRelation(currentUserId, authorId);
+      if (isBlocked) {
+        return res.status(403).json({ message: "Post unavailable" });
+      }
+    }
+
+    const [enriched] = withAuthorRelationshipFlags([post], me);
+    return res.json({ post: enriched });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to load post" });
   }
 });
 

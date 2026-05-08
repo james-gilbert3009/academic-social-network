@@ -1,14 +1,16 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { API_BASE_URL, setAuthToken } from "../api";
 import { getProfile, getProfileById, updateProfile } from "../api/profile";
 import { deletePost, getPostsByUser } from "../api/posts";
 import {
+  blockUser,
   deleteMyAccount,
   getConnections,
   getFollowers,
   getFollowing,
   toggleFollow,
+  unblockUser,
 } from "../api/users";
 import AppHeader from "../components/AppHeader.jsx";
 import ConfirmDialog from "../components/ConfirmDialog";
@@ -20,7 +22,8 @@ import ProfileAvatar from "../components/ProfileAvatar";
 import ProfileForm, { ProfileHeaderActions, ProfileIdentityBlock } from "../components/ProfileForm";
 import FollowListModal from "../components/FollowListModal";
 import UserSearch from "../components/UserSearch";
-import { FaUser } from "react-icons/fa";
+import { openConversationTarget } from "../api/messages";
+import { Ban, ICON_SIZE, MessageCircle, Unlock } from "../utils/icons";
 
 function toCommaList(arr) {
   if (!Array.isArray(arr)) return "";
@@ -63,6 +66,11 @@ export default function Profile() {
   const location = useLocation();
   const handledEditRouteKey = useRef(null);
   const handledDeleteRouteKey = useRef(null);
+  const handledFocusProfileCardKey = useRef(null);
+  // Pointer to the profile card section so we can `scrollIntoView` it when
+  // we arrive from a "click avatar / name in the feed" navigation. Lives
+  // on whichever card variant is rendered (regular or restricted/blocked).
+  const profileCardRef = useRef(null);
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -88,6 +96,8 @@ export default function Profile() {
   const [showPostDetailsModal, setShowPostDetailsModal] = useState(false);
   const [postPendingDelete, setPostPendingDelete] = useState(null);
   const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
+  const [blockBusy, setBlockBusy] = useState(false);
+  const [showBlockConfirm, setShowBlockConfirm] = useState(false);
 
   const [form, setForm] = useState({
     name: "",
@@ -179,8 +189,15 @@ export default function Profile() {
         interests: toCommaList(u?.interests),
       });
 
-      if (u?._id) {
+      // Skip loading posts when the profile is gated by a block — the
+      // backend already returns [] for /api/posts/user/:id in that case,
+      // but avoiding the request keeps the network panel quiet and
+      // prevents flashing an empty "Posts" section.
+      if (u?._id && !u?.isBlocked) {
         await loadProfilePosts(u._id);
+      } else {
+        setProfilePosts([]);
+        setPostsError("");
       }
     } catch (err) {
       const msg = err?.response?.data?.message || err?.message || "Failed to load profile";
@@ -329,6 +346,69 @@ export default function Profile() {
     }
   }
 
+  // Resolve the global block flags from the loaded profile. When the
+  // current viewer hits their own profile these are always false because
+  // the backend never marks `me` as blocked even if a stale list says so.
+  // We only branch on `isBlockedByMe` in the UI — when only `hasBlockedMe`
+  // is true we render the generic "This profile is unavailable" message
+  // so there's no need to thread that flag through separately.
+  const isBlockedByMe = Boolean(readOnlyProfile && user?.isBlockedByMe);
+  const isBlockedView = Boolean(readOnlyProfile && user?.isBlocked);
+
+  function openBlockConfirm() {
+    if (!readOnlyProfile || isBlockedView || blockBusy) return;
+    setShowBlockConfirm(true);
+  }
+
+  function closeBlockConfirm() {
+    setShowBlockConfirm(false);
+  }
+
+  async function handleConfirmBlock() {
+    if (!routeUserId || blockBusy) return;
+    setShowBlockConfirm(false);
+    setStatus("");
+    setBlockBusy(true);
+    try {
+      await blockUser(routeUserId);
+      // Refetch the profile so the restricted card and post list both
+      // come from the server's authoritative response (and so the local
+      // me.following/followers reflect the unfollow side-effect).
+      await loadProfile();
+      // Tell the rest of the app to recompute notification badges /
+      // conversation banners — the block wipes those server-side and
+      // these consumers update instantly when nudged.
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("notifications:refresh"));
+        window.dispatchEvent(new Event("messages:unread-refresh"));
+      }
+    } catch (err) {
+      const msg = err?.response?.data?.message || err?.message || "Failed to block user";
+      setStatus(msg);
+    } finally {
+      setBlockBusy(false);
+    }
+  }
+
+  async function handleUnblock() {
+    if (!routeUserId || blockBusy) return;
+    setStatus("");
+    setBlockBusy(true);
+    try {
+      await unblockUser(routeUserId);
+      await loadProfile();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("notifications:refresh"));
+        window.dispatchEvent(new Event("messages:unread-refresh"));
+      }
+    } catch (err) {
+      const msg = err?.response?.data?.message || err?.message || "Failed to unblock user";
+      setStatus(msg);
+    } finally {
+      setBlockBusy(false);
+    }
+  }
+
   const followButtonLabel = useMemo(() => {
     if (!readOnlyProfile) return "";
     if (isFriend) return "Connected";
@@ -436,6 +516,92 @@ export default function Profile() {
     loadProfile();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routeUserId]);
+
+  // Disable browser scroll restoration the first time this page mounts.
+  // Without this, Chrome/Firefox can restore a stale scroll position from
+  // a previous Profile visit AFTER our reset effect runs, pushing the
+  // user back into the posts area before they ever see the card. We do
+  // this in a layout effect so it runs before the first paint of the
+  // very first profile view, and we leave it in "manual" mode for the
+  // rest of the session — every other page that needs scroll restoration
+  // would have to opt in explicitly.
+  useLayoutEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.history && "scrollRestoration" in window.history) {
+      window.history.scrollRestoration = "manual";
+    }
+  }, []);
+
+  // Reset scroll to top synchronously before the new profile paints,
+  // every time the viewed user or path changes (and on initial mount).
+  //
+  // We use `useLayoutEffect` (not `useEffect`) on purpose: useEffect
+  // fires AFTER the browser paints, so even an instant `scrollTo(0)`
+  // would briefly flash the new profile at the previous page's scroll
+  // position — which on a tall feed lands directly in the posts area
+  // and looks indistinguishable from "navigation took me to posts".
+  // useLayoutEffect runs synchronously between commit and paint, so the
+  // user only ever sees the new profile from the top.
+  //
+  // We also use raw `scrollTop = 0` on documentElement / body in
+  // addition to `window.scrollTo({ top: 0 })` because the latter
+  // honors any stray `scroll-behavior: smooth` declaration and we
+  // really do want this to be instant.
+  useLayoutEffect(() => {
+    if (typeof window === "undefined") return;
+    window.scrollTo(0, 0);
+    if (document.documentElement) document.documentElement.scrollTop = 0;
+    if (document.body) document.body.scrollTop = 0;
+  }, [routeUserId, location.pathname]);
+
+  // Belt-and-suspenders: re-apply the scroll-to-top once the new profile
+  // has finished loading. The card grows the page from "Loading…"
+  // height to its full height in one go, and on slow connections the
+  // initial layout-effect runs while the page is still short. After the
+  // user data lands the page suddenly becomes tall — without this
+  // re-scroll the browser may restore a non-zero scroll position from
+  // the previous route at that moment.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (loading) return;
+    window.scrollTo(0, 0);
+  }, [loading, routeUserId]);
+
+  // Honor the `focusProfileCard` route state pushed by every avatar /
+  // name / username click site (FeedPostCard, ClickableAvatar,
+  // NotificationsDropdown, UserSearch, etc.).
+  //
+  // Two responsibilities:
+  //   1. Force-scroll to the top of the document. This is redundant with
+  //      the layout-effect on route change (which already handles the
+  //      common case), but it ALSO covers same-pathname clicks — e.g.
+  //      clicking your own avatar on the feed while already at /profile
+  //      — where the route-change effect wouldn't fire because nothing
+  //      in its deps actually changed.
+  //   2. Clear the route state so a back/forward later doesn't re-fire
+  //      the scroll.
+  //
+  // We don't use `scrollIntoView({block:"start"})` on the card here
+  // because the AppHeader is `position: sticky; top: 0`. Putting the
+  // card's top edge at viewport[0] would slide the card title under
+  // the sticky header — landing the user at "scroll = 70px" and hiding
+  // the very thing we wanted to bring into view. `scrollTo(0, 0)`
+  // keeps the AppHeader in its natural stuck-to-top position with the
+  // card immediately below it, which is what we actually want.
+  useEffect(() => {
+    if (!location.state?.focusProfileCard) return;
+    if (handledFocusProfileCardKey.current === location.key) return;
+    handledFocusProfileCardKey.current = location.key;
+
+    if (typeof window !== "undefined") {
+      window.scrollTo(0, 0);
+      if (document.documentElement) document.documentElement.scrollTop = 0;
+      if (document.body) document.body.scrollTop = 0;
+    }
+
+    navigate(location.pathname, { replace: true, state: {} });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state, location.pathname, location.key]);
 
   useEffect(() => {
     const wantsEdit = Boolean(location?.state?.openEditProfile);
@@ -720,78 +886,189 @@ export default function Profile() {
       {user ? (
         <>
 
-          <section className="card profile-hero">
-            <div
-              className={
-                showProfileAside
-                  ? "profileCardHeader profileCardHeader--withAside"
-                  : "profileCardHeader profileCardHeader--twoColOnly"
-              }
-            >
-              <div className="profileCardAvatarSlot">
-                <ProfileAvatar
-                  avatarDisplaySrc={avatarDisplaySrc}
-                  viewImageSrc={hasProfilePicture ? profileImageSrc(user.profileImage) : null}
-                  hasProfilePicture={hasProfilePicture}
-                  loading={loading}
-                  profilePhotoBusy={profilePhotoBusy}
-                  onUploadPending={uploadPendingProfileImage}
-                  onRemoveProfilePicture={removeProfilePicture}
-                  readOnly={readOnlyProfile}
+          {isBlockedView ? (
+            // Restricted profile card. Used in two related situations:
+            //   1. The current user blocked the target → shows "You blocked
+            //      this user." plus an Unblock button.
+            //   2. The target blocked the current user → shows "This profile
+            //      is unavailable." with no Unblock affordance (we don't
+            //      tell the blocked side that the other user blocked them
+            //      to keep things low-conflict, just that the profile is
+            //      unavailable).
+            // Either way every detail beyond identity (bio, faculty,
+            // skills, follower counts, posts, connect / message) is
+            // intentionally hidden — the backend already strips them, the
+            // frontend just renders nothing.
+            <section ref={profileCardRef} className="card profile-hero profileBlockedCard">
+              <div className="profileBlockedCard__header">
+                <img
+                  src={avatarDisplaySrc}
+                  alt=""
+                  aria-hidden="true"
+                  className="profileBlockedCard__avatar"
                 />
-              </div>
-
-              <div className="profileCardMainInfo">
-                <div className="profileCardTopRow">
-                  <div className="profileIdentityBlock">
-                    <ProfileIdentityBlock
-                      user={user}
-                      form={form}
-                      setForm={setForm}
-                      editing={editing}
-                      readOnly={readOnlyProfile}
-                    />
+                <div className="profileBlockedCard__identity">
+                  <div className="profileBlockedCard__name">
+                    {user?.name || "Blocked user"}
                   </div>
-
-                  <div className="profileStatsInline">{renderProfileStatButtons()}</div>
-                </div>
-              </div>
-
-              {showProfileAside ? (
-                <div className="profileCardHeaderAside">
-                  {readOnlyProfile ? (
-                    <div className="actionsRow">
-                      <button
-                        className={isFollowing ? "secondary-button btn-compact" : "primary-button btn-compact"}
-                        type="button"
-                        onClick={handleToggleFollow}
-                        disabled={followBusy}
-                        aria-busy={followBusy ? "true" : "false"}
-                      >
-                        {followBusy ? "..." : followButtonLabel}
-                      </button>
-                    </div>
-                  ) : isOwnProfile ? (
-                    <ProfileHeaderActions
-                      editing={editing}
-                      readOnly={readOnlyProfile}
-                      canSave={canSave}
-                      saving={saving}
-                      onStartEdit={startEdit}
-                      onCancelEdit={cancelEdit}
-                      onSave={save}
-                      editButtonClassName="profileEditTopButton"
-                    />
+                  {user?.username ? (
+                    <div className="muted">@{user.username}</div>
                   ) : null}
                 </div>
-              ) : null}
-            </div>
+              </div>
 
-            <ProfileForm {...profileFormSharedProps} showHeader={false} />
+              <div className="profileBlockedCard__body">
+                {isBlockedByMe ? (
+                  <>
+                    <h3 className="profileBlockedCard__title">
+                      You blocked this user.
+                    </h3>
+                    <p className="muted profileBlockedCard__hint">
+                      Unblock this user to view their profile and posts again.
+                    </p>
+                    <div className="actionsRow profileBlockedCard__actions">
+                      <button
+                        type="button"
+                        className="primary-button btn-compact btnWithIcon"
+                        onClick={handleUnblock}
+                        disabled={blockBusy}
+                        aria-busy={blockBusy ? "true" : "false"}
+                      >
+                        <Unlock size={ICON_SIZE.sm} aria-hidden />
+                        {blockBusy ? "Unblocking…" : "Unblock"}
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <h3 className="profileBlockedCard__title">
+                      This profile is unavailable.
+                    </h3>
+                    <p className="muted profileBlockedCard__hint">
+                      You can't view this user's profile or posts right now.
+                    </p>
+                  </>
+                )}
+              </div>
+            </section>
+          ) : (
+            <section ref={profileCardRef} className="card profile-hero">
+              <div
+                className={
+                  showProfileAside
+                    ? "profileCardHeader profileCardHeader--withAside"
+                    : "profileCardHeader profileCardHeader--twoColOnly"
+                }
+              >
+                <div className="profileCardAvatarSlot">
+                  <ProfileAvatar
+                    avatarDisplaySrc={avatarDisplaySrc}
+                    viewImageSrc={hasProfilePicture ? profileImageSrc(user.profileImage) : null}
+                    hasProfilePicture={hasProfilePicture}
+                    loading={loading}
+                    profilePhotoBusy={profilePhotoBusy}
+                    onUploadPending={uploadPendingProfileImage}
+                    onRemoveProfilePicture={removeProfilePicture}
+                    readOnly={readOnlyProfile}
+                  />
+                </div>
 
-            {/* Delete account is available via Settings menu. */}
-          </section>
+                <div className="profileCardMainInfo">
+                  <div className="profileCardTopRow">
+                    <div className="profileIdentityBlock">
+                      <ProfileIdentityBlock
+                        user={user}
+                        form={form}
+                        setForm={setForm}
+                        editing={editing}
+                        readOnly={readOnlyProfile}
+                      />
+                    </div>
 
+                    <div className="profileStatsInline">{renderProfileStatButtons()}</div>
+                  </div>
+                </div>
+
+                {showProfileAside ? (
+                  <div className="profileCardHeaderAside">
+                    {readOnlyProfile ? (
+                      <div className="actionsRow profileMobileActionsRow">
+                        <button
+                          className={isFollowing ? "secondary-button btn-compact" : "primary-button btn-compact"}
+                          type="button"
+                          onClick={handleToggleFollow}
+                          disabled={followBusy}
+                          aria-busy={followBusy ? "true" : "false"}
+                        >
+                          {followBusy ? "..." : followButtonLabel}
+                        </button>
+                        <button
+                          className="outline-button btn-compact btnWithIcon profileMessageBtn"
+                          type="button"
+                          onClick={async () => {
+                            if (!routeUserId) return;
+                            try {
+                              // Lookup-only: ask the server whether a chat
+                              // already exists with this user. The endpoint
+                              // never creates one — if there's no existing
+                              // conversation we navigate to the "new chat"
+                              // route so the user can compose a first
+                              // message without spawning a request yet.
+                              const res = await openConversationTarget(routeUserId);
+                              const existingId = res?.data?.conversation?._id;
+                              if (existingId) {
+                                navigate(`/messages/${existingId}`);
+                              } else {
+                                navigate(`/messages/new/${routeUserId}`);
+                              }
+                            } catch (err) {
+                              const msg =
+                                err?.response?.data?.message || err?.message || "Could not open chat";
+                              setStatus(msg);
+                            }
+                          }}
+                          disabled={followBusy}
+                          aria-label="Message"
+                          title="Message"
+                        >
+                          <MessageCircle size={ICON_SIZE.sm} aria-hidden />
+                          <span className="profileMessageBtn__label">Message</span>
+                        </button>
+                        <button
+                          className="outline-button btn-compact btnWithIcon profileBlockBtn"
+                          type="button"
+                          onClick={openBlockConfirm}
+                          disabled={blockBusy}
+                          aria-label="Block user"
+                          title="Block user"
+                        >
+                          <Ban size={ICON_SIZE.sm} aria-hidden />
+                          <span className="profileBlockBtn__label">Block</span>
+                        </button>
+                      </div>
+                    ) : isOwnProfile ? (
+                      <ProfileHeaderActions
+                        editing={editing}
+                        readOnly={readOnlyProfile}
+                        canSave={canSave}
+                        saving={saving}
+                        onStartEdit={startEdit}
+                        onCancelEdit={cancelEdit}
+                        onSave={save}
+                        editButtonClassName="profileEditTopButton"
+                      />
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+
+              <ProfileForm {...profileFormSharedProps} showHeader={false} />
+
+              {/* Delete account is available via Settings menu. */}
+            </section>
+          )}
+
+          {isBlockedView ? null : (
           <section className="card">
             <div className="topbar" style={{ padding: 0 }}>
               <h2 style={{ marginBottom: 0 }}>Posts</h2>
@@ -829,6 +1106,7 @@ export default function Profile() {
               ))}
             </div>
           </section>
+          )}
         </>
       ) : null}
 
@@ -882,6 +1160,20 @@ export default function Profile() {
         cancelLabel="Cancel"
         onCancel={closeDeleteAccountModal}
         onConfirm={confirmDeleteAccount}
+      />
+
+      <ConfirmDialog
+        open={showBlockConfirm}
+        title="Block this user?"
+        message={
+          user?.name
+            ? `${user.name} will no longer be able to see your profile or posts, and you won't see theirs. Any active follow between you will be removed.`
+            : "This user will no longer be able to see your profile or posts, and you won't see theirs. Any active follow between you will be removed."
+        }
+        confirmLabel="Block"
+        cancelLabel="Cancel"
+        onCancel={closeBlockConfirm}
+        onConfirm={handleConfirmBlock}
       />
 
       <FollowListModal
