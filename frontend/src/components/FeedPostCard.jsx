@@ -19,6 +19,7 @@ import {
 } from "../utils/icons";
 import SharePostModal from "./SharePostModal";
 import ClickableAvatar from "./ClickableAvatar";
+import PostEngagementModal from "./PostEngagementModal";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
@@ -75,10 +76,13 @@ export default function FeedPostCard({
   onEdit,
   onDelete,
   onOpenDetails,
+  onPostUpdated,
 }) {
   const navigate = useNavigate();
   const [captionExpanded, setCaptionExpanded] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [engagementOpen, setEngagementOpen] = useState(false);
+  const [engagementInitialTab, setEngagementInitialTab] = useState("likes");
   const actionsWrapRef = useRef(null);
   const author = post.author || {};
   const authorId = typeof post.author === "object" ? post.author?._id : post.author;
@@ -344,14 +348,36 @@ export default function FeedPostCard({
 
       <footer className="feedPostCard__toolbar">
         <div className="feedPostCard__stats" aria-label="Engagement">
-          <span>
+          <button
+            type="button"
+            className="feedPostCard__statButton"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setEngagementInitialTab("likes");
+              setEngagementOpen(true);
+            }}
+            aria-label="View likes"
+            title="View likes"
+          >
             <Heart size={ICON_SIZE.sm} aria-hidden />
             {likeCount} {likeCount === 1 ? "like" : "likes"}
-          </span>
-          <span>
+          </button>
+          <button
+            type="button"
+            className="feedPostCard__statButton"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setEngagementInitialTab("comments");
+              setEngagementOpen(true);
+            }}
+            aria-label="View comments"
+            title="View comments"
+          >
             <MessageCircle size={ICON_SIZE.sm} aria-hidden />
             {commentCount} {commentCount === 1 ? "comment" : "comments"}
-          </span>
+          </button>
         </div>
         <div className="feedPostCard__actions">
           <button
@@ -417,6 +443,15 @@ export default function FeedPostCard({
         post={post}
         me={currentUser}
         onClose={() => setShareOpen(false)}
+      />
+
+      <PostEngagementModal
+        open={engagementOpen}
+        post={post}
+        currentUser={currentUser}
+        initialTab={engagementInitialTab}
+        onClose={() => setEngagementOpen(false)}
+        onPostUpdated={onPostUpdated}
       />
     </article>
   );

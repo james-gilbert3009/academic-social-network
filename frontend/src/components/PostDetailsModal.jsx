@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { addComment, deleteComment, toggleLike } from "../api/posts";
 import ClickableAvatar from "./ClickableAvatar";
 import ConfirmDialog from "./ConfirmDialog";
+import PostEngagementModal from "./PostEngagementModal";
 import RoleBadge from "./RoleBadge";
 import timeAgo from "../utils/timeAgo";
 import {
@@ -74,6 +75,8 @@ export default function PostDetailsModal({ post, currentUser, onClose, onPostUpd
   const [commentBusy, setCommentBusy] = useState(false);
   const [error, setError] = useState("");
   const [pendingDeleteCommentId, setPendingDeleteCommentId] = useState(null);
+  const [engagementOpen, setEngagementOpen] = useState(false);
+  const [engagementInitialTab, setEngagementInitialTab] = useState("likes");
 
   if (!post) return null;
 
@@ -84,6 +87,7 @@ export default function PostDetailsModal({ post, currentUser, onClose, onPostUpd
   const commentsCount = post.comments?.length || 0;
   const createdLabel = timeAgo(post.createdAt);
   const liked = hasUserLiked(post, currentUser);
+  // Keep memoized helpers above (post likes are shown via PostEngagementModal).
 
   const caption = (post.content || "").trim();
   const hasImage = Boolean(post.image && String(post.image).trim());
@@ -227,14 +231,32 @@ export default function PostDetailsModal({ post, currentUser, onClose, onPostUpd
 
           <div className="postDetailsModal__engagement">
             <div className="postDetailsModal__stats" aria-live="polite">
-              <span>
+              <button
+                type="button"
+                className="postDetailsModal__statButton"
+                onClick={() => {
+                  setEngagementInitialTab("likes");
+                  setEngagementOpen(true);
+                }}
+                aria-label="View likes"
+                title="View likes"
+              >
                 <Heart size={ICON_SIZE.sm} aria-hidden />
                 {likesCount} {likesCount === 1 ? "like" : "likes"}
-              </span>
-              <span>
+              </button>
+              <button
+                type="button"
+                className="postDetailsModal__statButton"
+                onClick={() => {
+                  setEngagementInitialTab("comments");
+                  setEngagementOpen(true);
+                }}
+                aria-label="View comments"
+                title="View comments"
+              >
                 <MessageCircle size={ICON_SIZE.sm} aria-hidden />
                 {commentsCount} {commentsCount === 1 ? "comment" : "comments"}
-              </span>
+              </button>
             </div>
             <button
               className={
@@ -278,25 +300,48 @@ export default function PostDetailsModal({ post, currentUser, onClose, onPostUpd
                 const u = c.user || {};
                 const commentDate = timeAgo(c.createdAt);
                 const showDelete = canDeleteComment(post, c, currentUser);
+                const commentUserId =
+                  typeof c.user === "object" && c.user !== null ? c.user._id : c.user;
+                const canNavigateCommentUser = Boolean(commentUserId);
                 return (
                   <div className="postDetailsModalCommentRow" key={c._id}>
+                    <ClickableAvatar
+                      user={u}
+                      currentUserId={currentUser?._id}
+                      imgClassName="postDetailsModalCommentRow__avatar"
+                      ariaLabel={`Open ${u?.name || u?.username || "member"} profile`}
+                      title={`Open ${u?.name || u?.username || "member"} profile`}
+                    />
+
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div
-                        style={{
-                          fontWeight: 600,
-                          color: "var(--text-h)",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 8,
-                          flexWrap: "wrap",
+                      <button
+                        type="button"
+                        className="postDetailsModalCommentRow__authorButton"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          if (!canNavigateCommentUser) return;
+                          const isMe =
+                            currentUser?._id && String(commentUserId) === String(currentUser._id);
+                          navigate(isMe ? "/profile" : `/profile/${commentUserId}`, {
+                            state: { focusProfileCard: true },
+                          });
                         }}
+                        style={{ cursor: canNavigateCommentUser ? "pointer" : "default" }}
+                        aria-label={`Open ${u?.name || u?.username || "member"} profile`}
                       >
-                        <span>{u.name || "User"}</span>
+                        <span className="postDetailsModalCommentRow__authorName">
+                          {u.name || "User"}
+                        </span>
                         <RoleBadge role={u?.role} />
-                      </div>
-                      <div style={{ whiteSpace: "pre-wrap", marginTop: 6, lineHeight: 1.45 }}>{c.text || ""}</div>
-                      <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>
-                        {commentDate}
+                        <span className="muted postDetailsModalCommentRow__authorUsername">
+                          @{u.username || "user"}
+                        </span>
+                      </button>
+
+                      <div className="postDetailsModalCommentRow__text">{c.text || ""}</div>
+                      <div className="postDetailsModalCommentRow__meta">
+                        <span className="muted">{commentDate}</span>
                       </div>
                     </div>
                     {showDelete ? (
@@ -347,6 +392,15 @@ export default function PostDetailsModal({ post, currentUser, onClose, onPostUpd
       cancelLabel="Cancel"
       onCancel={() => setPendingDeleteCommentId(null)}
       onConfirm={confirmDeleteComment}
+    />
+
+    <PostEngagementModal
+      open={engagementOpen}
+      post={post}
+      currentUser={currentUser}
+      initialTab={engagementInitialTab}
+      onClose={() => setEngagementOpen(false)}
+      onPostUpdated={onPostUpdated}
     />
     </>
   );

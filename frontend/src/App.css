@@ -2254,8 +2254,8 @@ svg.lucide {
   position: absolute;
   right: 0;
   margin-top: 8px;
-  width: 360px;
-  max-width: min(90vw, 360px);
+  width: min(460px, calc(100vw - 32px));
+  max-height: min(720px, calc(100svh - 96px));
   /* Use same surface as modalCard (solid, not transparent) */
   background: var(--surface);
   border: 1px solid var(--border);
@@ -2263,6 +2263,8 @@ svg.lucide {
   box-shadow: 0 12px 26px rgba(0, 0, 0, 0.18);
   overflow: hidden;
   z-index: 250;
+  display: flex;
+  flex-direction: column;
 }
 
 .notif__menuActions {
@@ -2273,14 +2275,15 @@ svg.lucide {
 }
 
 .notif__list {
-  max-height: 420px;
   overflow: auto;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .notif__item {
   width: 100%;
   text-align: left;
-  padding: 12px 12px;
+  padding: 12px 14px;
   background: transparent;
   border: none;
   border-bottom: 1px solid var(--border);
@@ -2333,15 +2336,347 @@ svg.lucide {
 
 .notif__itemText {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  display: block;
+  line-height: 1.35;
+}
+
+.notif__senderName {
+  font-weight: 800;
+  color: var(--text);
+}
+
+.notif__message {
+  font-weight: 400;
+}
+
+.notif__commentSnippet {
+  font-size: 13px;
+  margin-top: 6px;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  line-height: 1.35;
 }
 
 .notif__itemTime {
   font-size: 12px;
   white-space: nowrap;
   flex: 0 0 auto;
+}
+
+/* Post engagement modal (Likes + Comments) */
+.postEngagementModal {
+  width: min(560px, calc(100vw - 24px));
+  max-height: min(720px, calc(100svh - 48px));
+  min-height: 320px;
+  display: flex;
+  flex-direction: column;
+}
+
+.postEngagementModal--compact {
+  height: auto;
+  min-height: 260px;
+}
+
+.postEngagementModal--medium {
+  height: min(520px, calc(100svh - 48px));
+}
+
+.postEngagementModal--large {
+  height: min(720px, calc(100svh - 48px));
+}
+
+.postEngagementModal__tabs {
+  display: flex;
+  gap: 8px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: color-mix(in oklab, var(--surface) 92%, var(--surface-soft));
+}
+
+.postEngagementModal__tab {
+  flex: 1 1 0;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text);
+  border-radius: 10px;
+  padding: 10px 10px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: 650;
+}
+
+.postEngagementModal__tab:hover {
+  background: color-mix(in oklab, var(--surface) 86%, var(--social-bg) 14%);
+}
+
+.postEngagementModal__tab--active {
+  background: color-mix(in oklab, var(--accent-bg) 70%, transparent);
+  border-color: color-mix(in oklab, var(--primary) 22%, var(--border));
+}
+
+.postEngagementModal__body {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  margin-top: 10px;
+}
+
+.postEngagementModal__list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.postEngagementModal__row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  border: 1px solid var(--border);
+  background: color-mix(in oklab, var(--surface) 92%, var(--surface-soft));
+  color: var(--text);
+  border-radius: 12px;
+  padding: 10px 12px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.postEngagementModal__row:hover {
+  background: color-mix(in oklab, var(--surface) 86%, var(--social-bg) 14%);
+}
+
+.postEngagementModal__avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  object-fit: cover;
+  border: 1px solid var(--border);
+}
+
+.postEngagementModal__meta {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.postEngagementModal__nameRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.postEngagementModal__name {
+  font-weight: 700;
+  color: var(--text-h);
+}
+
+.postEngagementModal__username {
+  margin-top: 3px;
+  font-size: 0.92rem;
+}
+
+.postEngagementModal__comments {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.postEngagementModal__commentRow {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  border: 1px solid var(--border);
+  background: color-mix(in oklab, var(--surface) 92%, var(--surface-soft));
+  color: var(--text);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.postEngagementModal__commentAvatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  flex: 0 0 auto;
+}
+
+.postEngagementModal__commentAuthor {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  border: none;
+  background: transparent;
+  padding: 0;
+  color: var(--text-h);
+  text-align: left;
+  cursor: pointer;
+}
+
+.postEngagementModal__commentName {
+  font-weight: 700;
+}
+
+.postEngagementModal__commentUsername {
+  font-size: 0.92rem;
+}
+
+.postEngagementModal__commentText {
+  white-space: pre-wrap;
+  margin-top: 8px;
+  line-height: 1.45;
+}
+
+.postEngagementModal__commentMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.postEngagementModal__commentLike {
+  border: 1px solid var(--border);
+  background: color-mix(in oklab, var(--surface) 92%, var(--surface-soft));
+  color: var(--text);
+  border-radius: 999px;
+  padding: 6px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  line-height: 1;
+  font-weight: 650;
+}
+
+.postEngagementModal__commentLike:hover {
+  background: color-mix(in oklab, var(--surface) 86%, var(--social-bg) 14%);
+}
+
+.postEngagementModal__commentLike--active {
+  color: var(--primary);
+  border-color: color-mix(in oklab, var(--primary) 50%, var(--border));
+}
+
+@media (max-width: 640px) {
+  .postEngagementModal {
+    width: calc(100vw - 20px);
+    max-height: calc(100svh - 32px);
+  }
+}
+
+/* Make feed stat look clickable */
+.feedPostCard__statButton {
+  border: none;
+  background: transparent;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: inherit;
+  cursor: pointer;
+}
+
+.feedPostCard__statButton:hover {
+  text-decoration: underline;
+}
+
+/* Post details: likes count button */
+.postDetailsModal__statButton {
+  border: none;
+  background: transparent;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: inherit;
+  cursor: pointer;
+}
+
+.postDetailsModal__statButton:hover {
+  text-decoration: underline;
+}
+
+/* Comment rows with avatar + like button */
+.postDetailsModalCommentRow {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.postDetailsModalCommentRow__avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  flex: 0 0 auto;
+}
+
+.postDetailsModalCommentRow__authorButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  border: none;
+  background: transparent;
+  padding: 0;
+  color: var(--text-h);
+  text-align: left;
+}
+
+.postDetailsModalCommentRow__authorName {
+  font-weight: 700;
+}
+
+.postDetailsModalCommentRow__authorUsername {
+  font-size: 0.92rem;
+}
+
+.postDetailsModalCommentRow__text {
+  white-space: pre-wrap;
+  margin-top: 6px;
+  line-height: 1.45;
+}
+
+.postDetailsModalCommentRow__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.postDetailsModalCommentRow__likeButton {
+  border: 1px solid var(--border);
+  background: color-mix(in oklab, var(--surface) 92%, var(--surface-soft));
+  color: var(--text);
+  border-radius: 999px;
+  padding: 6px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  line-height: 1;
+  font-weight: 650;
+}
+
+.postDetailsModalCommentRow__likeButton:hover {
+  background: color-mix(in oklab, var(--surface) 86%, var(--social-bg) 14%);
+}
+
+.postDetailsModalCommentRow__likeButton--active {
+  color: var(--primary);
+  border-color: color-mix(in oklab, var(--primary) 50%, var(--border));
 }
 
 .srOnly {
@@ -2365,10 +2700,11 @@ svg.lucide {
     max-width: none;
     top: 72px;
     margin-top: 0;
+    max-height: calc(100svh - 96px);
   }
 
   .notif__list {
-    max-height: min(60vh, 520px);
+    max-height: none;
   }
 
   .notif__itemText {

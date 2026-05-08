@@ -37,3 +37,7 @@ export function deleteComment(postId, commentId) {
   return api.delete(`/api/posts/${postId}/comments/${commentId}`);
 }
 
+export function toggleCommentLike(postId, commentId) {
+  return api.put(`/api/posts/${postId}/comments/${commentId}/like`);
+}
+

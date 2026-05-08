@@ -6,25 +6,24 @@ import { Bell, ICON_SIZE } from "../utils/icons";
 import ClickableAvatar from "./ClickableAvatar";
 import timeAgo from "../utils/timeAgo";
 
-function getNotificationText(n) {
-  const senderName = n?.sender?.name || n?.sender?.username || "Someone";
+function getNotificationActionText(n) {
   switch (n?.type) {
     case "follow":
-      return `${senderName} followed you`;
+      return "followed you";
     case "follow_back":
-      return `${senderName} followed you back`;
-    case "friend":
-      return `You and ${senderName} are now friends`;
+      return "followed you back";
     case "like":
-      return `${senderName} liked your post`;
+      return "liked your post";
+    case "comment_like":
+      return "liked your comment";
     case "comment":
-      return `${senderName} commented on your post`;
+      return "commented on your post";
     case "post":
-      return `${senderName} created a new post`;
+      return "created a new post";
     case "message_request":
-      return `${senderName} sent you a message request`;
+      return "sent you a message request";
     default:
-      return "New notification";
+      return "sent you a notification";
   }
 }
 
@@ -139,13 +138,26 @@ export default function NotificationsDropdown() {
       return;
     }
 
-    // For like/comment/post, keep it simple for demo: go to feed.
+    // For like/comment/post: open post details directly (global modal host).
     const postId = n?.post?._id || n?.post;
-    if (postId) {
-      navigate("/feed", { state: { openPostId: String(postId) } });
-    } else {
+    if (n.type === "like" || n.type === "comment" || n.type === "comment_like" || n.type === "post") {
+      if (postId) {
+        window.dispatchEvent(
+          new CustomEvent("open-post-details", {
+            detail: { postId: String(postId) },
+          })
+        );
+        setOpen(false);
+        return;
+      }
+      // Fallback: post missing from notification payload.
       navigate("/feed");
+      setOpen(false);
+      return;
     }
+
+    // Default fallback behavior.
+    navigate("/feed");
     setOpen(false);
   }
 
@@ -212,6 +224,7 @@ export default function NotificationsDropdown() {
             {(notifications || []).map((n) => {
               const unread = !n?.isRead;
               const senderName = n?.sender?.name || n?.sender?.username || "User";
+              const actionText = getNotificationActionText(n);
               return (
                 <button
                   key={n._id}
@@ -228,14 +241,25 @@ export default function NotificationsDropdown() {
 
                     <div className="notif__content">
                       <div className="notif__headline">
-                        <div className="notif__itemText" style={{ fontWeight: unread ? 800 : 600 }}>
-                          {getNotificationText(n)}
+                        <div className="notif__itemText">
+                          {n?.type === "friend" ? (
+                            <>
+                              <span className="notif__message">You and </span>
+                              <strong className="notif__senderName">{senderName}</strong>
+                              <span className="notif__message"> are now friends</span>
+                            </>
+                          ) : (
+                            <>
+                              <strong className="notif__senderName">{senderName}</strong>{" "}
+                              <span className="notif__message">{actionText}</span>
+                            </>
+                          )}
                         </div>
                         <div className="muted notif__itemTime">{timeAgo(n?.createdAt)}</div>
                       </div>
 
                       {n?.type === "comment" && n?.commentText ? (
-                        <div className="muted" style={{ fontSize: 13, marginTop: 6 }}>
+                        <div className="muted notif__commentSnippet">
                           “{n.commentText}”
                         </div>
                       ) : null}

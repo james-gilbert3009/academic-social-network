@@ -561,6 +561,7 @@ export default function Feed() {
                 onEdit={handleEdit}
                 onDelete={requestDeletePost}
                 onOpenDetails={handleOpenPostDetails}
+                onPostUpdated={handlePostUpdated}
               />
             ))}
           </div>

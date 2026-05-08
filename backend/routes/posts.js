@@ -93,6 +93,14 @@ function getPopulatedPostQuery(excludeAuthorIds) {
   return Post.find(filter)
     .sort({ createdAt: -1 })
     .populate("author", "name username profileImage role")
+    .populate("likes", "name username profileImage role")
+    .populate("comments.user", "name username profileImage role");
+}
+
+function getPopulatedPostByIdQuery(postId) {
+  return Post.findById(postId)
+    .populate("author", "name username profileImage role")
+    .populate("likes", "name username profileImage role")
     .populate("comments.user", "name username profileImage role");
 }
 
@@ -174,9 +182,7 @@ router.post("/", requireAuth, uploadSinglePostImage, async (req, res) => {
       // Intentionally ignore notification failures for thesis demo.
     }
 
-    const populated = await Post.findById(post._id)
-      .populate("author", "name username profileImage role")
-      .populate("comments.user", "name username profileImage role");
+    const populated = await getPopulatedPostByIdQuery(post._id);
 
     return res.status(201).json({ post: populated });
   } catch (error) {
@@ -224,6 +230,7 @@ router.get("/user/:userId", requireAuth, async (req, res) => {
       Post.find({ author: req.params.userId })
         .sort({ createdAt: -1 })
         .populate("author", "name username profileImage role")
+        .populate("likes", "name username profileImage role")
         .populate("comments.user", "name username profileImage role"),
       User.findById(req.user.id).select("followers following").lean(),
     ]);
@@ -242,9 +249,7 @@ router.get("/user/:userId", requireAuth, async (req, res) => {
 router.get("/:id", requireAuth, async (req, res) => {
   try {
     const [post, me] = await Promise.all([
-      Post.findById(req.params.id)
-        .populate("author", "name username profileImage role")
-        .populate("comments.user", "name username profileImage role"),
+      getPopulatedPostByIdQuery(req.params.id),
       User.findById(req.user.id).select("followers following").lean(),
     ]);
 
@@ -288,9 +293,7 @@ router.put("/:id", requireAuth, async (req, res) => {
 
     await post.save();
 
-    const populated = await Post.findById(post._id)
-      .populate("author", "name username profileImage role")
-      .populate("comments.user", "name username profileImage role");
+    const populated = await getPopulatedPostByIdQuery(post._id);
 
     return res.json({ post: populated });
   } catch (error) {
@@ -382,9 +385,7 @@ router.put("/:id/like", requireAuth, async (req, res) => {
       }
     }
 
-    const populated = await Post.findById(post._id)
-      .populate("author", "name username profileImage role")
-      .populate("comments.user", "name username profileImage role");
+    const populated = await getPopulatedPostByIdQuery(post._id);
 
     return res.json({ post: populated });
   } catch (error) {
@@ -420,9 +421,7 @@ router.post("/:id/comments", requireAuth, async (req, res) => {
       }
     }
 
-    const populated = await Post.findById(post._id)
-      .populate("author", "name username profileImage role")
-      .populate("comments.user", "name username profileImage role");
+    const populated = await getPopulatedPostByIdQuery(post._id);
 
     return res.status(201).json({ post: populated });
   } catch (error) {
@@ -469,13 +468,89 @@ router.delete("/:postId/comments/:commentId", requireAuth, async (req, res) => {
       // Intentionally ignore cleanup failures for thesis demo.
     }
 
-    const populated = await Post.findById(post._id)
-      .populate("author", "name username profileImage role")
-      .populate("comments.user", "name username profileImage role");
+    const populated = await getPopulatedPostByIdQuery(post._id);
 
     return res.json({ post: populated });
   } catch (error) {
     return res.status(500).json({ message: "Failed to delete comment" });
+  }
+});
+
+// PUT /api/posts/:postId/comments/:commentId/like
+// Like/unlike a specific comment
+router.put("/:postId/comments/:commentId/like", requireAuth, async (req, res) => {
+  try {
+    const postId = String(req.params.postId || "");
+    const commentId = String(req.params.commentId || "");
+    const currentUserId = String(req.user.id || "");
+
+    const [post, me] = await Promise.all([
+      Post.findById(postId),
+      User.findById(req.user.id).select("followers following").lean(),
+    ]);
+
+    if (!post) return res.status(404).json({ message: "Post not found" });
+
+    const authorId = post?.author ? String(post.author) : "";
+    if (authorId && authorId !== currentUserId) {
+      const { isBlocked } = await getBlockRelation(currentUserId, authorId);
+      if (isBlocked) return res.status(403).json({ message: "Post unavailable" });
+    }
+
+    const comment = post.comments.id(commentId);
+    if (!comment) return res.status(404).json({ message: "Comment not found" });
+
+    const likesArr = Array.isArray(comment.likes) ? comment.likes : [];
+    const alreadyLiked = likesArr.some((id) => String(id) === currentUserId);
+
+    if (alreadyLiked) {
+      comment.likes = likesArr.filter((id) => String(id) !== currentUserId);
+    } else {
+      comment.likes = [...likesArr, req.user.id];
+    }
+
+    await post.save();
+
+    // Notifications: on comment-like (only when liking, not unliking),
+    // notify the comment author, never notify yourself, and respect blocks.
+    if (!alreadyLiked) {
+      try {
+        const rawCommentUser = comment.user;
+        const commentUserId =
+          rawCommentUser && typeof rawCommentUser === "object" && rawCommentUser._id
+            ? String(rawCommentUser._id)
+            : String(rawCommentUser || "");
+
+        if (commentUserId && commentUserId !== currentUserId) {
+          const { isBlocked } = await getBlockRelation(currentUserId, commentUserId);
+          if (!isBlocked) {
+            const existing = await Notification.findOne({
+              recipient: commentUserId,
+              sender: req.user.id,
+              type: "comment_like",
+              post: post._id,
+            }).select("_id");
+
+            if (!existing) {
+              await Notification.create({
+                recipient: commentUserId,
+                sender: req.user.id,
+                type: "comment_like",
+                post: post._id,
+              });
+            }
+          }
+        }
+      } catch (notifErr) {
+        // Best-effort for thesis demo: never break the main request.
+      }
+    }
+
+    const populated = await getPopulatedPostByIdQuery(post._id);
+    const [enriched] = withAuthorRelationshipFlags([populated], me);
+    return res.json({ post: enriched });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to toggle comment like" });
   }
 });
 
