@@ -17,7 +17,7 @@ import NotificationsDropdown from "../components/NotificationsDropdown.jsx";
 import PostDetailsModal from "../components/PostDetailsModal";
 import ProfilePostCard from "../components/ProfilePostCard";
 import ProfileAvatar from "../components/ProfileAvatar";
-import ProfileForm from "../components/ProfileForm";
+import ProfileForm, { ProfileHeaderActions, ProfileIdentityBlock } from "../components/ProfileForm";
 import FollowListModal from "../components/FollowListModal";
 import UserSearch from "../components/UserSearch";
 import { FaUser } from "react-icons/fa";
@@ -32,6 +32,20 @@ function fromCommaList(value) {
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
+}
+
+function useMediaQuery(query) {
+  const [matches, setMatches] = useState(() =>
+    typeof window !== "undefined" ? window.matchMedia(query).matches : false
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const onChange = () => setMatches(mq.matches);
+    onChange();
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, [query]);
+  return matches;
 }
 
 /** Full URL for displaying profileImage (handles /uploads paths from the API). */
@@ -587,6 +601,86 @@ export default function Profile() {
     save(e);
   }
 
+  const isNarrowMobile = useMediaQuery("(max-width: 640px)");
+
+  const showProfileAside = readOnlyProfile || (isOwnProfile && (editing || !isNarrowMobile));
+
+  function renderProfileStatButtons() {
+    return (
+      <>
+        {isOwnProfile ? (
+          <button
+            type="button"
+            className="secondary-button btn-compact profileStatButton"
+            onClick={() => openFollowList("connections")}
+          >
+            <strong style={{ color: "var(--text-h)", fontVariantNumeric: "tabular-nums" }}>
+              {connectionsCount}
+            </strong>{" "}
+            Connections
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="secondary-button btn-compact profileStatButton"
+            onClick={() => openFollowList("mutualConnections")}
+          >
+            <strong style={{ color: "var(--text-h)", fontVariantNumeric: "tabular-nums" }}>
+              {mutualConnectionsCount}
+            </strong>{" "}
+            Mutual connections
+          </button>
+        )}
+
+        <button
+          type="button"
+          className="secondary-button btn-compact profileStatButton"
+          onClick={() => openFollowList("followers")}
+        >
+          <strong style={{ color: "var(--text-h)", fontVariantNumeric: "tabular-nums" }}>
+            {typeof user?.followersCount === "number"
+              ? user.followersCount
+              : Array.isArray(user?.followers)
+                ? user.followers.length
+                : 0}
+          </strong>{" "}
+          Followers
+        </button>
+
+        <button
+          type="button"
+          className="secondary-button btn-compact profileStatButton"
+          onClick={() => openFollowList("following")}
+        >
+          <strong style={{ color: "var(--text-h)", fontVariantNumeric: "tabular-nums" }}>
+            {typeof user?.followingCount === "number"
+              ? user.followingCount
+              : Array.isArray(user?.following)
+                ? user.following.length
+                : 0}
+          </strong>{" "}
+          Following
+        </button>
+      </>
+    );
+  }
+
+  const profileFormSharedProps = {
+    user,
+    form,
+    setForm,
+    editing,
+    saving,
+    canSave,
+    status,
+    photoStatus,
+    onStartEdit: startEdit,
+    onCancelEdit: cancelEdit,
+    onSave: save,
+    onSubmitProfile: submitProfile,
+    readOnly: readOnlyProfile,
+  };
+
   return (
     <div className="page">
       <AppHeader
@@ -598,15 +692,6 @@ export default function Profile() {
         onEditProfile={startEdit}
         onDeleteAccount={openDeleteAccountModal}
       />
-
-      <h1 style={{ marginBottom: 6 }}>
-        {readOnlyProfile ? "Member profile" : "Your profile"}
-      </h1>
-      <p className="muted" style={{ marginBottom: 8 }}>
-        {readOnlyProfile
-          ? "Academic details and shared posts."
-          : "Manage how you appear on TSI CONNECT."}
-      </p>
 
       {loading ? <div className="muted">Loading...</div> : null}
 
@@ -637,108 +722,72 @@ export default function Profile() {
 
           <section className="card profile-hero">
             <div
-              className="topbar"
-              style={{ padding: 0, marginBottom: 12, alignItems: "center" }}
+              className={
+                showProfileAside
+                  ? "profileCardHeader profileCardHeader--withAside"
+                  : "profileCardHeader profileCardHeader--twoColOnly"
+              }
             >
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                {isOwnProfile ? (
-                  <button
-                    type="button"
-                    className="secondary-button btn-compact"
-                    onClick={() => openFollowList("connections")}
-                  >
-                    <strong style={{ color: "var(--text-h)", fontVariantNumeric: "tabular-nums" }}>
-                      {connectionsCount}
-                    </strong>{" "}
-                    Connections
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    className="secondary-button btn-compact"
-                    onClick={() => openFollowList("mutualConnections")}
-                  >
-                    <strong style={{ color: "var(--text-h)", fontVariantNumeric: "tabular-nums" }}>
-                      {mutualConnectionsCount}
-                    </strong>{" "}
-                    Mutual connections
-                  </button>
-                )}
-
-                <button
-                  type="button"
-                  className="secondary-button btn-compact"
-                  onClick={() => openFollowList("followers")}
-                >
-                  <strong style={{ color: "var(--text-h)", fontVariantNumeric: "tabular-nums" }}>
-                    {typeof user.followersCount === "number"
-                      ? user.followersCount
-                      : Array.isArray(user.followers)
-                        ? user.followers.length
-                        : 0}
-                  </strong>{" "}
-                  Followers
-                </button>
-
-                <button
-                  type="button"
-                  className="secondary-button btn-compact"
-                  onClick={() => openFollowList("following")}
-                >
-                  <strong style={{ color: "var(--text-h)", fontVariantNumeric: "tabular-nums" }}>
-                    {typeof user.followingCount === "number"
-                      ? user.followingCount
-                      : Array.isArray(user.following)
-                        ? user.following.length
-                        : 0}
-                  </strong>{" "}
-                  Following
-                </button>
+              <div className="profileCardAvatarSlot">
+                <ProfileAvatar
+                  avatarDisplaySrc={avatarDisplaySrc}
+                  viewImageSrc={hasProfilePicture ? profileImageSrc(user.profileImage) : null}
+                  hasProfilePicture={hasProfilePicture}
+                  loading={loading}
+                  profilePhotoBusy={profilePhotoBusy}
+                  onUploadPending={uploadPendingProfileImage}
+                  onRemoveProfilePicture={removeProfilePicture}
+                  readOnly={readOnlyProfile}
+                />
               </div>
 
-              {readOnlyProfile ? (
-                <div className="actionsRow">
-                  <button
-                    className={isFollowing ? "secondary-button btn-compact" : "primary-button btn-compact"}
-                    type="button"
-                    onClick={handleToggleFollow}
-                    disabled={followBusy}
-                    aria-busy={followBusy ? "true" : "false"}
-                  >
-                    {followBusy ? "..." : followButtonLabel}
-                  </button>
+              <div className="profileCardMainInfo">
+                <div className="profileCardTopRow">
+                  <div className="profileIdentityBlock">
+                    <ProfileIdentityBlock
+                      user={user}
+                      form={form}
+                      setForm={setForm}
+                      editing={editing}
+                      readOnly={readOnlyProfile}
+                    />
+                  </div>
+
+                  <div className="profileStatsInline">{renderProfileStatButtons()}</div>
+                </div>
+              </div>
+
+              {showProfileAside ? (
+                <div className="profileCardHeaderAside">
+                  {readOnlyProfile ? (
+                    <div className="actionsRow">
+                      <button
+                        className={isFollowing ? "secondary-button btn-compact" : "primary-button btn-compact"}
+                        type="button"
+                        onClick={handleToggleFollow}
+                        disabled={followBusy}
+                        aria-busy={followBusy ? "true" : "false"}
+                      >
+                        {followBusy ? "..." : followButtonLabel}
+                      </button>
+                    </div>
+                  ) : isOwnProfile ? (
+                    <ProfileHeaderActions
+                      editing={editing}
+                      readOnly={readOnlyProfile}
+                      canSave={canSave}
+                      saving={saving}
+                      onStartEdit={startEdit}
+                      onCancelEdit={cancelEdit}
+                      onSave={save}
+                      editButtonClassName="profileEditTopButton"
+                    />
+                  ) : null}
                 </div>
               ) : null}
             </div>
 
-            <div className="row">
-              <ProfileAvatar
-                avatarDisplaySrc={avatarDisplaySrc}
-                viewImageSrc={hasProfilePicture ? profileImageSrc(user.profileImage) : null}
-                hasProfilePicture={hasProfilePicture}
-                loading={loading}
-                profilePhotoBusy={profilePhotoBusy}
-                onUploadPending={uploadPendingProfileImage}
-                onRemoveProfilePicture={removeProfilePicture}
-                readOnly={readOnlyProfile}
-              />
-
-              <ProfileForm
-                user={user}
-                form={form}
-                setForm={setForm}
-                editing={editing}
-                saving={saving}
-                canSave={canSave}
-                status={status}
-                photoStatus={photoStatus}
-                onStartEdit={startEdit}
-                onCancelEdit={cancelEdit}
-                onSave={save}
-                onSubmitProfile={submitProfile}
-                readOnly={readOnlyProfile}
-              />
-            </div>
+            <ProfileForm {...profileFormSharedProps} showHeader={false} />
 
             {/* Delete account is available via Settings menu. */}
           </section>
