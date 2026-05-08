@@ -70,6 +70,7 @@ export default function AppHeader({
   search = null,
   notifications = null,
   currentUser = null,
+  onFeedClick = null,
   onEditProfile = null,
   onDeleteAccount = null,
   showProfileActions = false,
@@ -125,6 +126,11 @@ export default function AppHeader({
   }
 
   function goFeed() {
+    if (activePage === "feed" && typeof onFeedClick === "function") {
+      onFeedClick();
+      closeOverlays();
+      return;
+    }
     navigate("/feed");
     closeOverlays();
   }
@@ -306,34 +312,12 @@ export default function AppHeader({
                   ? "app-nav__link app-nav__link--icon app-nav__link--active"
                   : "app-nav__link app-nav__link--icon"
               }
-              onClick={() => navigate("/feed")}
+              onClick={goFeed}
               aria-label="Feed"
               title="Feed"
               data-tooltip="Feed"
             >
               <House size={ICON_SIZE.lg} aria-hidden />
-            </button>
-            <button
-              type="button"
-              className={
-                activePage === "messages"
-                  ? "app-nav__link app-nav__link--icon app-nav__link--active"
-                  : "app-nav__link app-nav__link--icon"
-              }
-              onClick={() => navigate("/messages")}
-              aria-label={unreadAriaLabel}
-              title="Messages"
-              data-tooltip="Messages"
-            >
-              <MessageCircle size={ICON_SIZE.lg} aria-hidden />
-              {unreadBadgeText ? (
-                <span
-                  className="appHeaderUnreadBadge"
-                  aria-hidden="true"
-                >
-                  {unreadBadgeText}
-                </span>
-              ) : null}
             </button>
           </nav>
           {search}
@@ -342,6 +326,28 @@ export default function AppHeader({
         <div className="app-header__end app-header__desktopOnly">
           {notifications}
           {children}
+
+          {currentUser ? (
+            <button
+              type="button"
+              className={
+                activePage === "messages"
+                  ? "app-nav__link app-nav__link--icon app-nav__link--active"
+                  : "app-nav__link app-nav__link--icon"
+              }
+              onClick={goMessages}
+              aria-label={unreadAriaLabel}
+              title="Messages"
+              data-tooltip="Messages"
+            >
+              <MessageCircle size={ICON_SIZE.lg} aria-hidden />
+              {unreadBadgeText ? (
+                <span className="appHeaderUnreadBadge" aria-hidden="true">
+                  {unreadBadgeText}
+                </span>
+              ) : null}
+            </button>
+          ) : null}
 
           <div className="app-header__settingsWrap" ref={settingsWrapRef}>
             <button
@@ -456,6 +462,22 @@ export default function AppHeader({
           ) : null}
           {notifications ? (
             <div className="app-header__mobileNotif">{notifications}</div>
+          ) : null}
+          {currentUser ? (
+            <button
+              type="button"
+              className="icon-button app-header__mobileIconBtn appHeaderIconWithBadge"
+              aria-label={unreadAriaLabel}
+              onClick={goMessages}
+              title="Messages"
+            >
+              <MessageCircle size={ICON_SIZE.md} aria-hidden />
+              {unreadBadgeText ? (
+                <span className="appHeaderUnreadBadge" aria-hidden="true">
+                  {unreadBadgeText}
+                </span>
+              ) : null}
+            </button>
           ) : null}
           {currentUser ? (
             <button

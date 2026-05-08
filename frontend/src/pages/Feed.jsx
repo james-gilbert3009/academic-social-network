@@ -14,7 +14,7 @@ import {
 } from "../utils/icons";
 
 import { getProfile } from "../api/profile";
-import { deletePost, getPosts, toggleLike, updatePost } from "../api/posts";
+import { deletePost, getPostById, getPosts, toggleLike, updatePost } from "../api/posts";
 import { toggleFollow } from "../api/users";
 import AppHeader from "../components/AppHeader.jsx";
 import ConfirmDialog from "../components/ConfirmDialog";
@@ -40,7 +40,12 @@ export default function Feed() {
   const [me, setMe] = useState(null);
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState("");
+  const [activeFeedTab, setActiveFeedTab] = useState("network");
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [refreshTick, setRefreshTick] = useState(0);
   const [followBusyByUserId, setFollowBusyByUserId] = useState({});
   const [openPostActionsId, setOpenPostActionsId] = useState(null);
   const [followPendingDisconnectAuthor, setFollowPendingDisconnectAuthor] = useState(null);
@@ -55,6 +60,7 @@ export default function Feed() {
 
   const [postPendingDelete, setPostPendingDelete] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const PAGE_LIMIT = 10;
 
   /** True when the device supports hover (desktop-style); touch-first devices use tap-to-expand instead. */
   const [prefersHover, setPrefersHover] = useState(() =>
@@ -122,6 +128,9 @@ export default function Feed() {
   function handleMobileFeedTab(tab) {
     collapseCategorySidebar();
     setActiveMobileFeedTab(tab);
+    if (tab === "feed") {
+      setRefreshTick((v) => v + 1);
+    }
   }
 
   const CATEGORY_OPTIONS = [
@@ -134,29 +143,86 @@ export default function Feed() {
     { label: "General", value: "general" },
   ];
 
+  function getCategoryParam() {
+    return selectedCategory && selectedCategory !== "all" ? selectedCategory : undefined;
+  }
+
+  function scrollFeedToTop() {
+    // Desktop uses an internal scroll container; mobile uses window scroll.
+    try {
+      const el = document.querySelector(".feedViewportShell .platformPostsScroll");
+      if (el) el.scrollTop = 0;
+    } catch {
+      // ignore
+    }
+    try {
+      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    } catch {
+      window.scrollTo(0, 0);
+    }
+  }
+
+  async function fetchPostsPage({ nextPage, append }) {
+    const category = getCategoryParam();
+    if (append) setLoadingMore(true);
+    else setLoading(true);
+
+    setError("");
+    try {
+      const [meRes, postsRes] = await Promise.all([
+        me?._id ? Promise.resolve({ data: { user: me } }) : getProfile(),
+        getPosts({
+          tab: activeFeedTab,
+          page: nextPage,
+          limit: PAGE_LIMIT,
+          ...(category ? { category } : {}),
+        }),
+      ]);
+
+      const nextMe = meRes?.data?.user || null;
+      const payload = postsRes?.data || {};
+      const pagePosts = Array.isArray(payload.posts) ? payload.posts : [];
+
+      setMe(nextMe);
+      setHasMore(Boolean(payload.hasMore));
+      setPage(typeof payload.page === "number" ? payload.page : nextPage);
+
+      setPosts((prev) => {
+        const prevArr = Array.isArray(prev) ? prev : [];
+        if (!append) return pagePosts;
+        const seen = new Set(prevArr.map((p) => String(p?._id)));
+        const merged = [...prevArr];
+        for (const p of pagePosts) {
+          const id = String(p?._id || "");
+          if (!id || seen.has(id)) continue;
+          seen.add(id);
+          merged.push(p);
+        }
+        return merged;
+      });
+    } catch (err) {
+      setError(err?.response?.data?.message || err?.message || "Failed to load feed");
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  }
+
   useEffect(() => {
     let cancelled = false;
-    async function load() {
-      setLoading(true);
-      setError("");
-      try {
-        const [meRes, postsRes] = await Promise.all([getProfile(), getPosts()]);
-        if (cancelled) return;
-        setMe(meRes.data.user);
-        setPosts(postsRes.data.posts || []);
-      } catch (err) {
-        if (!cancelled) {
-          setError(err?.response?.data?.message || err?.message || "Failed to load feed");
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    load();
+    (async () => {
+      scrollFeedToTop();
+      setPosts([]);
+      setPage(1);
+      setHasMore(false);
+      await fetchPostsPage({ nextPage: 1, append: false });
+    })();
     return () => {
       cancelled = true;
+      void cancelled;
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeFeedTab, selectedCategory, refreshTick]);
 
   // If we navigated here from a notification, open that post immediately.
   useEffect(() => {
@@ -170,6 +236,21 @@ export default function Feed() {
       // Clear the navigation state so it won't re-open on re-render,
       // but allow future clicks on the same notification to work again.
       window.history.replaceState({}, document.title, location.pathname);
+    } else {
+      // With pagination, the target post might not be in the currently loaded pages.
+      // Best-effort: fetch it and open the modal directly.
+      (async () => {
+        try {
+          const res = await getPostById(openPostId);
+          const post = res?.data?.post ?? res?.data;
+          if (post?._id) {
+            handleOpenPostDetails(post);
+            window.history.replaceState({}, document.title, location.pathname);
+          }
+        } catch (err) {
+          // Ignore: feed can still render normally.
+        }
+      })();
     }
   }, [location.state, loading, posts, location.pathname]);
 
@@ -392,20 +473,72 @@ export default function Feed() {
 
   function handleFeedPostCreated(newPost) {
     closeCreatePostModal();
-    if (newPost?._id) {
-      setPosts((prev) => [newPost, ...prev]);
+    if (!newPost?._id) return;
+
+    const categoryOk =
+      selectedCategory === "all" ||
+      String(newPost?.category || "general").toLowerCase() === String(selectedCategory).toLowerCase();
+
+    const tabOk =
+      activeFeedTab === "all" ||
+      String(newPost?.author?._id || newPost?.author || "") === String(me?._id || "") ||
+      Boolean(newPost?.author?.isFollowing) ||
+      Boolean(newPost?.author?.isFriend);
+
+    if (categoryOk && tabOk) {
+      setPosts((prev) => [newPost, ...(prev || [])]);
+      return;
     }
+
+    // If it doesn't match the current view, keep UX simple: refresh page 1.
+    setPosts([]);
+    setPage(1);
+    setHasMore(false);
+    void fetchPostsPage({ nextPage: 1, append: false });
   }
 
   const editHasImage = Boolean(editingPost?.image && String(editingPost.image).trim());
   const canSaveEdit = Boolean(editContent.trim() || editHasImage);
 
-  const filteredPosts =
-    selectedCategory === "all"
-      ? posts
-      : (posts || []).filter(
-          (p) => String(p?.category || "general").toLowerCase() === selectedCategory
-        );
+  const filteredPosts = posts;
+
+  function handleFeedTabChange(nextTab) {
+    if (nextTab === activeFeedTab) {
+      scrollFeedToTop();
+      setRefreshTick((v) => v + 1);
+      return;
+    }
+    scrollFeedToTop();
+    setActiveFeedTab(nextTab);
+  }
+
+  async function loadMore() {
+    if (loading || loadingMore || !hasMore) return;
+    await fetchPostsPage({ nextPage: page + 1, append: true });
+  }
+
+  const feedTabsBar = (
+    <div className="feedTabsBar" role="tablist" aria-label="Feed tabs">
+      <button
+        type="button"
+        role="tab"
+        aria-selected={activeFeedTab === "network"}
+        className={activeFeedTab === "network" ? "feedTabBtn feedTabBtn--active" : "feedTabBtn"}
+        onClick={() => handleFeedTabChange("network")}
+      >
+        Connections
+      </button>
+      <button
+        type="button"
+        role="tab"
+        aria-selected={activeFeedTab === "all"}
+        className={activeFeedTab === "all" ? "feedTabBtn feedTabBtn--active" : "feedTabBtn"}
+        onClick={() => handleFeedTabChange("all")}
+      >
+        All
+      </button>
+    </div>
+  );
 
   const feedColumnHeader = (
     <div className="feedMainColumn__header">
@@ -432,6 +565,8 @@ export default function Feed() {
           Create new
         </button>
       </div>
+
+      {isMobileFeedLayout ? <div className="feedMobileTabsRow">{feedTabsBar}</div> : null}
     </div>
   );
 
@@ -516,13 +651,16 @@ export default function Feed() {
       {!isMobileFeedLayout ? feedCategoryRail : null}
 
       <div className="platformPostsArea">
+        {!isMobileFeedLayout ? feedTabsBar : null}
         {loading ? <div className="muted">Loading posts...</div> : null}
         {error ? <div className="alert alertError">{error}</div> : null}
 
         {!loading && !error && posts.length === 0 ? (
           <section className="card">
             <div className="emptyState">
-              No posts yet. Be the first to share something!
+              {activeFeedTab === "network"
+                ? "No posts from your connections or following yet."
+                : "No posts yet."}
             </div>
           </section>
         ) : null}
@@ -565,6 +703,25 @@ export default function Feed() {
               />
             ))}
           </div>
+
+          {!loading && !error && filteredPosts.length > 0 ? (
+            <div className="feedLoadMoreRow">
+              {hasMore ? (
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={loadMore}
+                  disabled={loadingMore}
+                >
+                  {loadingMore ? "Loading..." : "Load more"}
+                </button>
+              ) : (
+                <div className="muted" style={{ textAlign: "center" }}>
+                  You&rsquo;re all caught up.
+                </div>
+              )}
+            </div>
+          ) : null}
         </div>
       </div>
     </div>
@@ -582,6 +739,10 @@ export default function Feed() {
       <AppHeader
         activePage="feed"
         currentUser={me}
+        onFeedClick={() => {
+          scrollFeedToTop();
+          setRefreshTick((v) => v + 1);
+        }}
         search={me ? <UserSearch /> : null}
         notifications={me ? <NotificationsDropdown /> : null}
       />

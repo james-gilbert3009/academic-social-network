@@ -20,6 +20,8 @@ const messageSchema = new Schema(
     media: { type: [mediaSchema], default: [] },
     sharedPost: { type: Schema.Types.ObjectId, ref: "Post" },
     readAt: { type: Date },
+    deletedFor: { type: [{ type: Schema.Types.ObjectId, ref: "User" }], default: [] },
+    deletedForEveryone: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

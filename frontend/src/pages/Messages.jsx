@@ -5,6 +5,8 @@ import { getProfile, getProfileById } from "../api/profile";
 import {
   acceptMessageRequest,
   declineMessageRequest,
+  deleteConversation,
+  deleteMessage,
   getConversation,
   getConversations,
   getMessageRequests,
@@ -15,6 +17,7 @@ import {
 import { blockUser, unblockUser } from "../api/users";
 import AppHeader from "../components/AppHeader.jsx";
 import ClickableAvatar from "../components/ClickableAvatar";
+import ConfirmDialog from "../components/ConfirmDialog";
 import NotificationsDropdown from "../components/NotificationsDropdown.jsx";
 import PostDetailsModal from "../components/PostDetailsModal";
 import RoleBadge from "../components/RoleBadge";
@@ -27,6 +30,7 @@ import {
   ICON_SIZE,
   Paperclip,
   SendHorizontal,
+  Trash2,
   Unlock,
   X,
 } from "../utils/icons";
@@ -148,10 +152,33 @@ export default function Messages() {
   const [selectedSharedPost, setSelectedSharedPost] = useState(null);
   const [sharedPostUnavailable, setSharedPostUnavailable] = useState(false);
 
+  const [openMessageActionsId, setOpenMessageActionsId] = useState(null);
+  const [pendingDeleteMessage, setPendingDeleteMessage] = useState(null); // { messageId, mode }
+  const [messageDeleteBusy, setMessageDeleteBusy] = useState(false);
+  const [pendingDeleteChat, setPendingDeleteChat] = useState(false);
+
   const scrollRef = useRef(null);
   // Whether the user is parked near the bottom of the chat scroller. We only
   // auto-scroll on new messages when this is true (or when the user just sent).
   const nearBottomRef = useRef(true);
+
+  useEffect(() => {
+    if (!openMessageActionsId) return undefined;
+    function onPointerDown(e) {
+      const el = e.target;
+      if (el && typeof el.closest === "function" && el.closest(".messageActionsWrap")) return;
+      setOpenMessageActionsId(null);
+    }
+    function onKeyDown(e) {
+      if (e.key === "Escape") setOpenMessageActionsId(null);
+    }
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [openMessageActionsId]);
   const forceScrollNextRef = useRef(true);
   const lastReadAtRef = useRef(null);
 
@@ -1022,7 +1049,7 @@ export default function Messages() {
           Select a conversation to start chatting.
         </div>
       ) : (
-        <>
+        <div className="messagesChatPanel">
           <div className="messagesChatHeader">
             {isMobile ? (
               <button
@@ -1071,16 +1098,28 @@ export default function Messages() {
             !isRequest &&
             !isDeclined &&
             !(activeConversation?.isBlockedByOther && !activeConversation?.isBlockedByMe) ? (
-              <button
-                type="button"
-                className={activeConversation?.isBlockedByMe ? "secondary-button btn-compact btnWithIcon" : "outline-button btn-compact btnWithIcon"}
-                onClick={onBlockToggle}
-                disabled={!activeConversation}
-                title={activeConversation?.isBlockedByMe ? "Unblock" : "Block"}
-              >
-                {activeConversation?.isBlockedByMe ? <Unlock size={ICON_SIZE.sm} aria-hidden /> : <Ban size={ICON_SIZE.sm} aria-hidden />}
-                {activeConversation?.isBlockedByMe ? "Unblock" : "Block"}
-              </button>
+              <div className="messagesChatHeader__actions">
+                <button
+                  type="button"
+                  className="outline-button btn-compact btnWithIcon"
+                  onClick={() => setPendingDeleteChat(true)}
+                  disabled={!activeConversation}
+                  title="Delete chat"
+                >
+                  <Trash2 size={ICON_SIZE.sm} aria-hidden />
+                  Delete
+                </button>
+                <button
+                  type="button"
+                  className={activeConversation?.isBlockedByMe ? "secondary-button btn-compact btnWithIcon" : "outline-button btn-compact btnWithIcon"}
+                  onClick={onBlockToggle}
+                  disabled={!activeConversation}
+                  title={activeConversation?.isBlockedByMe ? "Unblock" : "Block"}
+                >
+                  {activeConversation?.isBlockedByMe ? <Unlock size={ICON_SIZE.sm} aria-hidden /> : <Ban size={ICON_SIZE.sm} aria-hidden />}
+                  {activeConversation?.isBlockedByMe ? "Unblock" : "Block"}
+                </button>
+              </div>
             ) : null}
           </div>
 
@@ -1156,7 +1195,7 @@ export default function Messages() {
           ) : null}
 
           <div
-            className="messagesScroll"
+            className="messagesScroll messagesChatBody"
             ref={scrollRef}
             aria-label="Messages"
             onScroll={onScrollChat}
@@ -1175,17 +1214,73 @@ export default function Messages() {
                 mine ? "messageBubble--mine" : "",
                 m?.pending ? "messageBubble--pending" : "",
                 m?.failed ? "messageBubble--failed" : "",
+                m?.deletedForEveryone ? "messageBubble--deleted" : "",
               ].filter(Boolean).join(" ");
               const txt = String(m.text || "").trim();
               const media = Array.isArray(m.media) ? m.media : [];
               const shared = m.sharedPost;
               const status = mine ? getMessageStatus(m, idx) : null;
+              const mediaOnly = !txt && !shared && media.length > 0;
+              const canDeleteForEveryone = Boolean(mine && !m?.deletedForEveryone && !m?.pending && !m?.failed);
 
-              return (
-                <div key={m._id || idx} className={mine ? "messageRow messageRow--mine" : "messageRow"}>
-                  <div className="messageRow__inner">
-                    <div className={bubbleClassNames}>
-                      {txt ? <div style={{ whiteSpace: "pre-wrap" }}>{txt}</div> : null}
+              const actionsWrap =
+                !isNewChat && !m?.pending && !isTempId(m?._id) ? (
+                  <div className="messageActionsWrap">
+                    <button
+                      type="button"
+                      className="messageActionsTrigger"
+                      aria-label="Message actions"
+                      aria-expanded={Boolean(openMessageActionsId && String(openMessageActionsId) === String(m._id))}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setOpenMessageActionsId((prev) =>
+                          prev && String(prev) === String(m._id) ? null : m._id
+                        );
+                      }}
+                    >
+                      ⋯
+                    </button>
+                    {openMessageActionsId && String(openMessageActionsId) === String(m._id) ? (
+                      <div className="messageActionsMenu" role="menu" aria-label="Message actions">
+                        <button
+                          type="button"
+                          className="messageActionsMenu__btn"
+                          role="menuitem"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setOpenMessageActionsId(null);
+                            setPendingDeleteMessage({ messageId: m._id, mode: "me" });
+                          }}
+                        >
+                          Delete for me
+                        </button>
+                        {canDeleteForEveryone ? (
+                          <button
+                            type="button"
+                            className="messageActionsMenu__btn messageActionsMenu__btn--danger"
+                            role="menuitem"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setOpenMessageActionsId(null);
+                              setPendingDeleteMessage({ messageId: m._id, mode: "everyone" });
+                            }}
+                          >
+                            Delete for everyone
+                          </button>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null;
+
+              const bubble = (
+                <div className={[bubbleClassNames, mediaOnly ? "messageBubble--mediaOnly" : ""].filter(Boolean).join(" ")}>
+                  {!m?.deletedForEveryone ? (
+                    <>
+                      {txt ? <div className="messageText">{txt}</div> : null}
 
                       {shared ? (
                         <button
@@ -1242,13 +1337,35 @@ export default function Messages() {
                           })}
                         </div>
                       ) : null}
+                    </>
+                  ) : (
+                    <div className="messageDeletedText">This message was deleted.</div>
+                  )}
+                </div>
+              );
+
+              return (
+                <div
+                  key={m._id || idx}
+                  className={mine ? "messageRow messageRow--mine" : "messageRow messageRow--other"}
+                >
+                  <div className="messageRow__inner">
+                    <div className="messageRow__cluster">
+                      {mine ? (
+                        <>
+                          {actionsWrap}
+                          {bubble}
+                        </>
+                      ) : (
+                        <>
+                          {bubble}
+                          {actionsWrap}
+                        </>
+                      )}
                     </div>
 
                     {status ? (
-                      <div
-                        className={`messageStatus messageStatus--${status.tone}`}
-                        aria-live="polite"
-                      >
+                      <div className={`messageStatus messageStatus--${status.tone}`} aria-live="polite">
                         {status.label}
                       </div>
                     ) : null}
@@ -1338,7 +1455,7 @@ export default function Messages() {
               </div>
             </div>
           </form>
-        </>
+        </div>
       )}
     </section>
   );
@@ -1385,6 +1502,74 @@ export default function Messages() {
           </div>
         </div>
       ) : null}
+
+      <ConfirmDialog
+        open={Boolean(pendingDeleteMessage)}
+        title="Delete message"
+        message={
+          pendingDeleteMessage?.mode === "everyone"
+            ? "Delete this message for everyone?"
+            : "Delete this message for you?"
+        }
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        onCancel={() => {
+          setPendingDeleteMessage(null);
+          setOpenMessageActionsId(null);
+        }}
+        onConfirm={async () => {
+          const payload = pendingDeleteMessage;
+          if (!payload?.messageId) return;
+          const mode = payload.mode === "everyone" ? "everyone" : "me";
+          setPendingDeleteMessage(null);
+          setMessageDeleteBusy(true);
+          setComposerError("");
+          setChatError("");
+          try {
+            const res = await deleteMessage(payload.messageId, mode);
+            const serverMsg = res?.data?.message || null;
+            setMessages((prev) => {
+              const list = Array.isArray(prev) ? prev : [];
+              if (mode === "me") return list.filter((x) => String(x?._id) !== String(payload.messageId));
+              // everyone: replace with placeholder
+              return list.map((x) => (String(x?._id) === String(payload.messageId) ? { ...x, ...(serverMsg || {}), deletedForEveryone: true } : x));
+            });
+            // refresh list ordering/preview if last message changed
+            refreshConversations();
+            refreshRequests();
+            notifyUnreadRefresh();
+          } catch (err) {
+            setChatError(err?.response?.data?.message || err?.message || "Failed to delete message");
+          } finally {
+            setMessageDeleteBusy(false);
+            setOpenMessageActionsId(null);
+          }
+        }}
+      />
+
+      <ConfirmDialog
+        open={Boolean(pendingDeleteChat)}
+        title="Delete chat"
+        message="Delete this chat from your inbox?"
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        onCancel={() => setPendingDeleteChat(false)}
+        onConfirm={async () => {
+          if (!conversationId) return;
+          setPendingDeleteChat(false);
+          setChatError("");
+          try {
+            await deleteConversation(conversationId);
+            setConversations((prev) => (prev || []).filter((c) => String(c?._id) !== String(conversationId)));
+            setMessages([]);
+            setActiveConversation(null);
+            navigate("/messages");
+            notifyUnreadRefresh();
+          } catch (err) {
+            setChatError(err?.response?.data?.message || err?.message || "Failed to delete chat");
+          }
+        }}
+      />
     </div>
   );
 }

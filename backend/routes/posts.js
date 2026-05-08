@@ -86,15 +86,36 @@ function uploadSinglePostImage(req, res, next) {
  * with the caller). Empty/missing list → no exclusion.
  */
 function getPopulatedPostQuery(excludeAuthorIds) {
-  const filter =
-    Array.isArray(excludeAuthorIds) && excludeAuthorIds.length
-      ? { author: { $nin: excludeAuthorIds } }
-      : {};
+  const filter = {};
+  if (Array.isArray(excludeAuthorIds) && excludeAuthorIds.length) {
+    filter.author = { $nin: excludeAuthorIds };
+  }
+
   return Post.find(filter)
     .sort({ createdAt: -1 })
     .populate("author", "name username profileImage role")
     .populate("likes", "name username profileImage role")
     .populate("comments.user", "name username profileImage role");
+}
+
+function clampInt(value, fallback, { min = 1, max = 100 } = {}) {
+  const n = Number.parseInt(String(value ?? ""), 10);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(min, Math.min(max, n));
+}
+
+function normalizeTab(rawTab) {
+  const v = String(rawTab || "").trim().toLowerCase();
+  if (v === "network") return "network";
+  if (v === "all") return "all";
+  return "all";
+}
+
+function normalizeCategory(rawCategory) {
+  if (rawCategory === undefined || rawCategory === null) return null;
+  const v = String(rawCategory).trim().toLowerCase();
+  if (!v) return null;
+  return v;
 }
 
 function getPopulatedPostByIdQuery(postId) {
@@ -192,19 +213,81 @@ router.post("/", requireAuth, uploadSinglePostImage, async (req, res) => {
 });
 
 // GET /api/posts
-// Get all posts (newest first). Excludes posts authored by anyone the
-// caller has blocked OR who has blocked the caller — both directions are
-// hidden so the block feels mutual in the feed.
+// Get paginated posts (newest first).
+//
+// Query params:
+// - tab=network|all (default: all)
+// - page=1 (default: 1)
+// - limit=10 (default: 10, max: 50)
+// - category=general|question|research|announcement|study|event (optional)
+//
+// Excludes posts authored by anyone the caller has blocked OR who has blocked the caller —
+// both directions are hidden so the block feels mutual in the feed.
 router.get("/", requireAuth, async (req, res) => {
   try {
-    const blockedIds = await getBlockedAndBlockerIds(req.user.id);
-    const [posts, me] = await Promise.all([
-      getPopulatedPostQuery(blockedIds).exec(),
-      User.findById(req.user.id).select("followers following").lean(),
+    const tab = normalizeTab(req.query?.tab);
+    const page = clampInt(req.query?.page, 1, { min: 1, max: 100000 });
+    const limit = clampInt(req.query?.limit, 10, { min: 1, max: 50 });
+    const category = normalizeCategory(req.query?.category);
+
+    if (category && !ALLOWED_POST_CATEGORIES.has(category)) {
+      return res.status(400).json({
+        message:
+          'Invalid category. Allowed: "question", "research", "announcement", "study", "event", "general".',
+      });
+    }
+
+    const currentUserId = String(req.user.id || "");
+    const blockedIds = await getBlockedAndBlockerIds(currentUserId);
+
+    const me = await User.findById(currentUserId).select("followers following").lean();
+    const followingIds = (me?.following || []).map((id) => String(id));
+    const followerIds = (me?.followers || []).map((id) => String(id));
+    const followersSet = new Set(followerIds);
+    const mutualIds = followingIds.filter((id) => followersSet.has(id));
+    const networkAuthorIds = Array.from(
+      new Set([currentUserId, ...followingIds, ...mutualIds].filter(Boolean))
+    );
+
+    const filter = {};
+    if (blockedIds.length) {
+      filter.author = { $nin: blockedIds };
+    }
+    if (category) {
+      filter.category = category;
+    }
+    if (tab === "network") {
+      filter.author = {
+        ...(filter.author || {}),
+        $in: networkAuthorIds,
+      };
+    }
+
+    const skip = (page - 1) * limit;
+
+    const [total, posts] = await Promise.all([
+      Post.countDocuments(filter),
+      Post.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .populate("author", "name username profileImage role")
+        .populate("likes", "name username profileImage role")
+        .populate("comments.user", "name username profileImage role"),
     ]);
 
     const enriched = withAuthorRelationshipFlags(posts, me);
-    return res.json({ posts: enriched });
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+    const hasMore = page * limit < total;
+
+    return res.json({
+      posts: enriched,
+      page,
+      limit,
+      total,
+      totalPages,
+      hasMore,
+    });
   } catch (err) {
     console.error("GET /api/posts error:", err);
     return res.status(500).json({ message: "Server error" });

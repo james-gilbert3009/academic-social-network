@@ -78,3 +78,11 @@ export function acceptMessageRequest(conversationId) {
 export function declineMessageRequest(conversationId) {
   return api.put(`/api/messages/conversations/${conversationId}/decline`);
 }
+
+export function deleteMessage(messageId, mode = "me") {
+  return api.delete(`/api/messages/${messageId}`, { params: { mode } });
+}
+
+export function deleteConversation(conversationId) {
+  return api.delete(`/api/messages/conversations/${conversationId}`);
+}

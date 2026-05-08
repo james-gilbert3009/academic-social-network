@@ -1,7 +1,9 @@
 import { api } from "../api";
 
-export function getPosts() {
-  return api.get("/api/posts");
+export function getPosts({ tab = "all", page = 1, limit = 10, category } = {}) {
+  const params = { tab, page, limit };
+  if (category) params.category = category;
+  return api.get("/api/posts", { params });
 }
 
 export function getPostsByUser(userId) {

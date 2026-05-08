@@ -139,6 +139,14 @@ function ensureIsParticipant(conversation, meId) {
   return participantIds.some((id) => String(id) === String(meId));
 }
 
+function getConversationDeletedAt(conversation, meId) {
+  const me = String(meId || "");
+  const entries = Array.isArray(conversation?.deletedFor) ? conversation.deletedFor : [];
+  const match = entries.find((e) => String(e?.user?._id || e?.user || "") === me);
+  const deletedAt = match?.deletedAt ? new Date(match.deletedAt) : null;
+  return deletedAt && !Number.isNaN(deletedAt.getTime()) ? deletedAt : null;
+}
+
 /**
  * Build a per-conversation global-block flag map for `decorateConversation`.
  *
@@ -272,17 +280,28 @@ router.get("/conversations", requireAuth, async (req, res) => {
       .populate("participants", SAFE_USER_FIELDS)
       .populate({
         path: "lastMessage",
-        select: "text media sharedPost sender recipient readAt createdAt",
+        select: "text media sharedPost sender recipient readAt createdAt deletedForEveryone",
       })
       .lean();
 
-    const convoIds = convos.map((c) => c._id);
+    // Hide conversations deleted by the current user unless a newer message arrived.
+    const visibleConvos = (convos || []).filter((c) => {
+      const deletedAt = getConversationDeletedAt(c, meId);
+      if (!deletedAt) return true;
+      const lastAt = c?.lastMessageAt ? new Date(c.lastMessageAt) : null;
+      if (!lastAt || Number.isNaN(lastAt.getTime())) return false;
+      return lastAt > deletedAt;
+    });
+
+    const convoIds = visibleConvos.map((c) => c._id);
     const unreadCounts = await Message.aggregate([
       {
         $match: {
           conversation: { $in: convoIds },
           recipient: meObjectId,
           readAt: { $exists: false },
+          deletedForEveryone: { $ne: true },
+          deletedFor: { $ne: meObjectId },
         },
       },
       { $group: { _id: "$conversation", count: { $sum: 1 } } },
@@ -292,9 +311,9 @@ router.get("/conversations", requireAuth, async (req, res) => {
       unreadCounts.map((row) => [String(row._id), Number(row.count || 0)])
     );
 
-    const blockFlagsByConvo = await buildGlobalBlockMap(convos, meId);
+    const blockFlagsByConvo = await buildGlobalBlockMap(visibleConvos, meId);
 
-    const conversations = convos.map((c) => {
+    const conversations = visibleConvos.map((c) => {
       const decorated = decorateConversation(
         c,
         meId,
@@ -334,7 +353,7 @@ router.get("/requests", requireAuth, async (req, res) => {
       .populate("participants", SAFE_USER_FIELDS)
       .populate({
         path: "lastMessage",
-        select: "text media sharedPost sender recipient readAt createdAt",
+        select: "text media sharedPost sender recipient readAt createdAt deletedForEveryone",
       })
       .lean();
 
@@ -385,6 +404,8 @@ router.get("/unread-count", requireAuth, async (req, res) => {
         $match: {
           conversation: { $in: convoIds },
           recipient: meObjectId,
+          deletedForEveryone: { $ne: true },
+          deletedFor: { $ne: meObjectId },
           $or: [{ readAt: { $exists: false } }, { readAt: null }],
         },
       },
@@ -472,7 +493,14 @@ router.get("/conversations/:conversationId", requireAuth, async (req, res) => {
     // Pull messages first without populating sharedPost so we can detect when
     // the referenced post was deleted (populate would silently null it and we'd
     // lose the original ObjectId, hiding the "this post was deleted" state).
-    const messagesRaw = await Message.find({ conversation: conversationId })
+    const deletedAt = getConversationDeletedAt(conversation, meId);
+    const baseFilter = {
+      conversation: conversationId,
+      deletedFor: { $ne: new mongoose.Types.ObjectId(meId) },
+      ...(deletedAt ? { createdAt: { $gt: deletedAt } } : {}),
+    };
+
+    const messagesRaw = await Message.find(baseFilter)
       .sort({ createdAt: 1 })
       .populate("sender", SAFE_USER_FIELDS)
       .populate("recipient", SAFE_USER_FIELDS)
@@ -493,6 +521,16 @@ router.get("/conversations/:conversationId", requireAuth, async (req, res) => {
     }
 
     const messages = messagesRaw.map((m) => {
+      if (m?.deletedForEveryone) {
+        return {
+          _id: m._id,
+          conversation: m.conversation,
+          sender: m.sender,
+          recipient: m.recipient,
+          createdAt: m.createdAt,
+          deletedForEveryone: true,
+        };
+      }
       if (!m?.sharedPost) return m;
       const post = postMap.get(String(m.sharedPost));
       if (!post) {
@@ -692,6 +730,9 @@ router.post("/conversations/:conversationId", requireAuth, uploadMessageMedia, a
       { lastMessage: message._id, lastMessageAt: now },
       { new: false }
     );
+
+    // If either participant previously deleted the chat, make it visible again.
+    // (Visibility rules compare lastMessageAt to deletedAt.)
 
     if (effectiveStatus === "requested" && effectiveRequestedBy === meId && effectiveRequestedTo) {
       await ensureMessageRequestNotification({
@@ -1095,6 +1136,100 @@ router.put("/conversations/:conversationId/unblock", requireAuth, async (req, re
     return res.json({ conversation: decorateConversation(updated, meId) });
   } catch (err) {
     return res.status(500).json({ message: "Failed to unblock user" });
+  }
+});
+
+// DELETE /api/messages/:messageId
+// Soft-delete a message for me or for everyone.
+// Query/body: { mode: "me" | "everyone" }
+router.delete("/:messageId", requireAuth, async (req, res) => {
+  try {
+    const meId = String(req.user.id || "");
+    const meObjectId = new mongoose.Types.ObjectId(meId);
+    const messageId = String(req.params?.messageId || "");
+    const modeRaw = req.body?.mode ?? req.query?.mode;
+    const mode = String(modeRaw || "me").toLowerCase() === "everyone" ? "everyone" : "me";
+
+    if (!mongoose.Types.ObjectId.isValid(messageId)) {
+      return res.status(400).json({ message: "Invalid message id" });
+    }
+
+    const message = await Message.findById(messageId);
+    if (!message) return res.status(404).json({ message: "Message not found" });
+
+    const conversation = await Conversation.findById(message.conversation).lean();
+    if (!conversation) return res.status(404).json({ message: "Conversation not found" });
+    if (!ensureIsParticipant(conversation, meId)) {
+      return res.status(403).json({ message: "Not allowed" });
+    }
+
+    if (mode === "everyone") {
+      if (String(message.sender) !== meId) {
+        return res.status(403).json({ message: "Only the sender can delete for everyone" });
+      }
+      message.deletedForEveryone = true;
+      message.text = "";
+      message.media = [];
+      message.sharedPost = null;
+      await message.save();
+
+      return res.json({
+        ok: true,
+        message: {
+          _id: message._id,
+          conversation: message.conversation,
+          sender: message.sender,
+          recipient: message.recipient,
+          createdAt: message.createdAt,
+          deletedForEveryone: true,
+        },
+      });
+    }
+
+    // mode === "me"
+    message.deletedFor = Array.isArray(message.deletedFor) ? message.deletedFor : [];
+    const already = message.deletedFor.some((id) => String(id) === meId);
+    if (!already) {
+      message.deletedFor.push(meObjectId);
+      await message.save();
+    }
+
+    return res.json({ ok: true });
+  } catch (err) {
+    return res.status(500).json({ message: "Failed to delete message" });
+  }
+});
+
+// DELETE /api/messages/conversations/:conversationId
+// Hide a conversation from the current user's inbox (does not affect the other participant).
+router.delete("/conversations/:conversationId", requireAuth, async (req, res) => {
+  try {
+    const meId = String(req.user.id || "");
+    const { conversationId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(conversationId)) {
+      return res.status(400).json({ message: "Invalid conversation id" });
+    }
+
+    const conversation = await Conversation.findById(conversationId);
+    if (!conversation) return res.status(404).json({ message: "Conversation not found" });
+    if (!ensureIsParticipant(conversation, meId)) {
+      return res.status(403).json({ message: "Not allowed" });
+    }
+
+    const now = new Date();
+    const list = Array.isArray(conversation.deletedFor) ? conversation.deletedFor : [];
+    const idx = list.findIndex((e) => String(e?.user) === meId);
+    if (idx >= 0) {
+      list[idx].deletedAt = now;
+    } else {
+      list.push({ user: meId, deletedAt: now });
+    }
+    conversation.deletedFor = list;
+    await conversation.save();
+
+    return res.json({ ok: true, deletedAt: now });
+  } catch (err) {
+    return res.status(500).json({ message: "Failed to delete conversation" });
   }
 });
 

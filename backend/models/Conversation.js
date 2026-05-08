@@ -39,6 +39,19 @@ const conversationSchema = new Schema(
     requestedTo: { type: Schema.Types.ObjectId, ref: "User", default: null },
     requestedAt: { type: Date, default: null },
     acceptedAt: { type: Date, default: null },
+
+    // Per-user inbox deletion/hide. Deleting a chat only hides it for the
+    // deleting user. If a newer message arrives after deletedAt, the chat
+    // becomes visible again.
+    deletedFor: {
+      type: [
+        {
+          user: { type: Schema.Types.ObjectId, ref: "User", required: true },
+          deletedAt: { type: Date, required: true },
+        },
+      ],
+      default: [],
+    },
   },
   { timestamps: true }
 );
