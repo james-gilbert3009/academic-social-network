@@ -111,7 +111,7 @@ export default function NotificationsDropdown() {
 
     try {
       if (!n.isRead) await markNotificationRead(n._id);
-    } catch (err) {
+    } catch {
       // If it fails, we keep it simple and don't revert.
     }
 

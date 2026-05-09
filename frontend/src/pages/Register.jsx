@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api, setAuthToken } from "../api";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 
 const ROLE_OPTIONS = [
   {
@@ -24,14 +26,36 @@ export default function Register() {
   const navigate = useNavigate();
   const [status, setStatus] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [dobError, setDobError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
     name: "",
     username: "",
     email: "",
     password: "",
     role: "student",
-    birthdate: "",
+    dateOfBirth: null,
   });
+
+  const today = useMemo(() => new Date(), []);
+
+  function calculateAge(date) {
+    if (!(date instanceof Date) || Number.isNaN(date.getTime())) return null;
+    const t = new Date();
+    if (date.getTime() > t.getTime()) return null;
+
+    let age = t.getFullYear() - date.getFullYear();
+    const monthDiff = t.getMonth() - date.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && t.getDate() < date.getDate())) {
+      age--;
+    }
+    return age;
+  }
+
+  function isAtLeastSixteen(date) {
+    const age = calculateAge(date);
+    return age !== null && age >= 16;
+  }
 
   function updateField(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -47,15 +71,31 @@ export default function Register() {
   async function submit(e) {
     e.preventDefault();
     setStatus("");
+    setDobError("");
+    if (submitting) return;
+
+    if (!form.dateOfBirth) {
+      setDobError("Date of birth is required.");
+      return;
+    }
+    if (!(form.dateOfBirth instanceof Date) || Number.isNaN(form.dateOfBirth.getTime())) {
+      setDobError("Please select a valid date of birth.");
+      return;
+    }
+    if (!isAtLeastSixteen(form.dateOfBirth)) {
+      setDobError("You must be at least 16 years old to register.");
+      return;
+    }
 
     try {
+      setSubmitting(true);
       const res = await api.post("/api/auth/register", {
         name: form.name,
         username: form.username,
         email: form.email,
         password: form.password,
         role: form.role,
-        birthdate: form.birthdate,
+        dateOfBirth: form.dateOfBirth.toISOString(),
       });
 
       const token = res.data.token;
@@ -64,8 +104,21 @@ export default function Register() {
       navigate("/profile-setup", { replace: true });
     } catch (err) {
       setStatus(err?.response?.data?.message || err?.message || "Registration failed");
+    } finally {
+      setSubmitting(false);
     }
   }
+
+  const canRegister = Boolean(
+    !submitting &&
+      form.name &&
+      form.username &&
+      form.email &&
+      form.password &&
+      form.dateOfBirth &&
+      !dobError &&
+      isAtLeastSixteen(form.dateOfBirth)
+  );
 
   return (
     <div className="page page-container auth-page auth-page--wide">
@@ -130,12 +183,43 @@ export default function Register() {
         </div>
 
         <label className="field">
-          <span>Birth date</span>
-          <input
-            type="date"
-            value={form.birthdate}
-            onChange={(e) => updateField("birthdate", e.target.value)}
-          />
+          <span>Date of birth</span>
+          <div className="registerDatePicker">
+            <DatePicker
+              selected={form.dateOfBirth}
+              onChange={(date) => {
+                setStatus("");
+                updateField("dateOfBirth", date);
+                if (!date) {
+                  setDobError("Date of birth is required.");
+                  return;
+                }
+                if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+                  setDobError("Please select a valid date of birth.");
+                  return;
+                }
+                if (!isAtLeastSixteen(date)) {
+                  setDobError("You must be at least 16 years old to register.");
+                } else {
+                  setDobError("");
+                }
+              }}
+              maxDate={today}
+              showMonthDropdown
+              showYearDropdown
+              dropdownMode="select"
+              dateFormat="dd/MM/yyyy"
+              placeholderText="Select your date of birth"
+              className="input"
+              popperClassName="registerDatePickerPopper"
+            />
+          </div>
+          {dobError ? <div className="fieldError">{dobError}</div> : null}
+          {!dobError && form.dateOfBirth && isAtLeastSixteen(form.dateOfBirth) ? (
+            <div className="muted" style={{ marginTop: 6, fontSize: "0.92rem" }}>
+              Age requirement met.
+            </div>
+          ) : null}
         </label>
 
         {/*
@@ -165,8 +249,8 @@ export default function Register() {
           </div>
         </div>
 
-        <button className="primary-button" type="submit">
-          Create account
+        <button className="primary-button" type="submit" disabled={!canRegister}>
+          {submitting ? "Creating..." : "Create account"}
         </button>
 
         {status ? <div className="alert alertError">{status}</div> : null}

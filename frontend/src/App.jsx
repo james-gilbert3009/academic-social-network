@@ -7,7 +7,9 @@ import { getProfile } from "./api/profile";
 import { applyStoredTheme } from "./utils/theme";
 import PostDetailsModal from "./components/PostDetailsModal.jsx";
 import RequireAuth from "./components/RequireAuth.jsx";
+import RequireAdmin from "./components/RequireAdmin.jsx";
 import RequireProfileComplete from "./components/RequireProfileComplete.jsx";
+import AdminDashboard from "./pages/AdminDashboard.jsx";
 import Feed from "./pages/Feed.jsx";
 import ForgotPassword from "./pages/ForgotPassword.jsx";
 import Login from "./pages/Login.jsx";
@@ -40,7 +42,7 @@ export default function App() {
       try {
         const res = await getProfile();
         if (!cancelled) setGlobalPostModalUser(res.data.user);
-      } catch (err) {
+      } catch {
         // Ignore: modal can still open read-only.
       }
     })();
@@ -91,6 +93,10 @@ export default function App() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
 
         <Route element={<RequireAuth />}>
+          <Route element={<RequireAdmin />}>
+            <Route path="/admin" element={<AdminDashboard />} />
+          </Route>
+
           <Route path="/profile-setup" element={<ProfileSetup />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/profile/:userId" element={<Profile />} />

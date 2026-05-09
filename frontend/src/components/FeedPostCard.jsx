@@ -20,6 +20,7 @@ import {
 import SharePostModal from "./SharePostModal";
 import ClickableAvatar from "./ClickableAvatar";
 import PostEngagementModal from "./PostEngagementModal";
+import ReportModal from "./ReportModal";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
@@ -83,6 +84,7 @@ export default function FeedPostCard({
   const [shareOpen, setShareOpen] = useState(false);
   const [engagementOpen, setEngagementOpen] = useState(false);
   const [engagementInitialTab, setEngagementInitialTab] = useState("likes");
+  const [reportOpen, setReportOpen] = useState(false);
   const actionsWrapRef = useRef(null);
   const author = post.author || {};
   const authorId = typeof post.author === "object" ? post.author?._id : post.author;
@@ -233,7 +235,52 @@ export default function FeedPostCard({
           </div>
 
           <div className="feedPostHeaderRight">
-            {isOwner ? (
+            {currentUser && !isOwner ? (
+              <div className="postCardActions" ref={actionsWrapRef}>
+                <button
+                  type="button"
+                  className="postCardActions__trigger"
+                  aria-label="Post actions"
+                  aria-haspopup="menu"
+                  aria-expanded={Boolean(actionsMenuOpen)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onToggleActionsMenu?.();
+                  }}
+                >
+                  <EllipsisVertical
+                    size={ICON_SIZE.lg}
+                    aria-hidden="true"
+                    className="postCardActions__dots"
+                  />
+                </button>
+
+                {actionsMenuOpen ? (
+                  <div
+                    className="postCardActions__menu"
+                    role="menu"
+                    aria-label="Post actions"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }}
+                  >
+                    <button
+                      type="button"
+                      className="postCardActions__item"
+                      role="menuitem"
+                      onClick={() => {
+                        onCloseActionsMenu?.();
+                        setReportOpen(true);
+                      }}
+                    >
+                      Report post
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            ) : isOwner ? (
               <div className="postCardActions" ref={actionsWrapRef}>
                 <button
                   type="button"
@@ -452,6 +499,17 @@ export default function FeedPostCard({
         initialTab={engagementInitialTab}
         onClose={() => setEngagementOpen(false)}
         onPostUpdated={onPostUpdated}
+      />
+
+      <ReportModal
+        isOpen={reportOpen}
+        targetType="post"
+        targetLabel="Post"
+        postId={post?._id}
+        onClose={() => setReportOpen(false)}
+        onSuccess={() => {
+          window.alert("Report submitted.");
+        }}
       />
     </article>
   );

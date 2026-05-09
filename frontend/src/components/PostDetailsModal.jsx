@@ -2,9 +2,11 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { addComment, deleteComment, toggleLike } from "../api/posts";
+import { deleteAdminPost } from "../api/admin";
 import ClickableAvatar from "./ClickableAvatar";
 import ConfirmDialog from "./ConfirmDialog";
 import PostEngagementModal from "./PostEngagementModal";
+import ReportModal from "./ReportModal";
 import RoleBadge from "./RoleBadge";
 import timeAgo from "../utils/timeAgo";
 import {
@@ -68,20 +70,39 @@ function canDeleteComment(post, comment, currentUser) {
   );
 }
 
-export default function PostDetailsModal({ post, currentUser, onClose, onPostUpdated }) {
+export default function PostDetailsModal({
+  post,
+  currentUser,
+  onClose,
+  onPostUpdated,
+  onPostDeleted,
+  adminMode = false,
+}) {
   const navigate = useNavigate();
   const [commentText, setCommentText] = useState("");
   const [likeBusy, setLikeBusy] = useState(false);
   const [commentBusy, setCommentBusy] = useState(false);
+  const [reportPostOpen, setReportPostOpen] = useState(false);
+  const [reportCommentOpen, setReportCommentOpen] = useState(false);
+  const [reportCommentTarget, setReportCommentTarget] = useState(null); // { commentId, label }
   const [error, setError] = useState("");
   const [pendingDeleteCommentId, setPendingDeleteCommentId] = useState(null);
+  const [pendingDeletePost, setPendingDeletePost] = useState(false);
+  const [postDeleteBusy, setPostDeleteBusy] = useState(false);
   const [engagementOpen, setEngagementOpen] = useState(false);
   const [engagementInitialTab, setEngagementInitialTab] = useState("likes");
 
-  if (!post) return null;
-
   const author = post.author || {};
   const authorId = typeof post.author === "object" && post.author !== null ? post.author._id : post.author;
+  const isOwner = Boolean(currentUser?._id && authorId && String(currentUser._id) === String(authorId));
+  const canAdminDelete = Boolean(
+    post &&
+      adminMode &&
+      String(currentUser?.role || "").toLowerCase() === "admin" &&
+      post._id
+  );
+
+  if (!post) return null;
 
   const likesCount = post.likes?.length || 0;
   const commentsCount = post.comments?.length || 0;
@@ -146,6 +167,24 @@ export default function PostDetailsModal({ post, currentUser, onClose, onPostUpd
     }
   }
 
+  async function confirmDeletePost() {
+    if (!post?._id) return;
+    if (!canAdminDelete) return;
+    if (postDeleteBusy) return;
+    setPendingDeletePost(false);
+    setPostDeleteBusy(true);
+    setError("");
+    try {
+      await deleteAdminPost(post._id);
+      onPostDeleted?.(post._id);
+      onClose?.();
+    } catch (err) {
+      setError(err?.response?.data?.message || err?.message || "Could not delete post");
+    } finally {
+      setPostDeleteBusy(false);
+    }
+  }
+
   return (
     <>
     <div className="modalOverlay" role="dialog" aria-modal="true" aria-labelledby="post-details-title">
@@ -154,9 +193,22 @@ export default function PostDetailsModal({ post, currentUser, onClose, onPostUpd
           <h2 id="post-details-title" style={{ marginBottom: 0 }}>
             Post
           </h2>
-          <button className="secondary-button btn-compact" type="button" onClick={onClose}>
-            Close
-          </button>
+          <div className="actionsRow" style={{ justifyContent: "flex-end" }}>
+            {canAdminDelete ? (
+              <button
+                className="danger-button btn-compact"
+                type="button"
+                onClick={() => setPendingDeletePost(true)}
+                disabled={postDeleteBusy}
+                title="Delete post"
+              >
+                Delete
+              </button>
+            ) : null}
+            <button className="secondary-button btn-compact" type="button" onClick={onClose}>
+              Close
+            </button>
+          </div>
         </div>
 
         <div className="postDetailsModal__scroll">
@@ -281,6 +333,16 @@ export default function PostDetailsModal({ post, currentUser, onClose, onPostUpd
                 </>
               )}
             </button>
+            {currentUser && !isOwner ? (
+              <button
+                className="secondary-button btn-compact"
+                type="button"
+                onClick={() => setReportPostOpen(true)}
+                title="Report this post"
+              >
+                Report
+              </button>
+            ) : null}
             {!currentUser ? <span className="muted" style={{ fontSize: "0.9rem" }}>Log in to like or comment.</span> : null}
           </div>
 
@@ -303,6 +365,8 @@ export default function PostDetailsModal({ post, currentUser, onClose, onPostUpd
                 const commentUserId =
                   typeof c.user === "object" && c.user !== null ? c.user._id : c.user;
                 const canNavigateCommentUser = Boolean(commentUserId);
+                const isMyComment =
+                  Boolean(currentUser?._id && commentUserId && String(currentUser._id) === String(commentUserId));
                 return (
                   <div className="postDetailsModalCommentRow" key={c._id}>
                     <ClickableAvatar
@@ -354,6 +418,23 @@ export default function PostDetailsModal({ post, currentUser, onClose, onPostUpd
                         Delete
                       </button>
                     ) : null}
+                    {currentUser && !isMyComment ? (
+                      <button
+                        className="secondary-button btn-compact"
+                        type="button"
+                        onClick={() => {
+                          setReportCommentTarget({
+                            commentId: c._id,
+                            label: `Comment by @${u.username || "user"}`,
+                          });
+                          setReportCommentOpen(true);
+                        }}
+                        disabled={commentBusy}
+                        title="Report this comment"
+                      >
+                        Report
+                      </button>
+                    ) : null}
                   </div>
                 );
               })
@@ -394,6 +475,16 @@ export default function PostDetailsModal({ post, currentUser, onClose, onPostUpd
       onConfirm={confirmDeleteComment}
     />
 
+    <ConfirmDialog
+      open={pendingDeletePost}
+      title="Delete post"
+      message="Delete this post for everyone?"
+      confirmLabel={postDeleteBusy ? "Deleting…" : "Delete"}
+      cancelLabel="Cancel"
+      onCancel={() => setPendingDeletePost(false)}
+      onConfirm={confirmDeletePost}
+    />
+
     <PostEngagementModal
       open={engagementOpen}
       post={post}
@@ -401,6 +492,32 @@ export default function PostDetailsModal({ post, currentUser, onClose, onPostUpd
       initialTab={engagementInitialTab}
       onClose={() => setEngagementOpen(false)}
       onPostUpdated={onPostUpdated}
+    />
+
+    <ReportModal
+      isOpen={reportPostOpen}
+      targetType="post"
+      targetLabel="Post"
+      postId={post?._id}
+      onClose={() => setReportPostOpen(false)}
+      onSuccess={() => {
+        window.alert("Report submitted.");
+      }}
+    />
+
+    <ReportModal
+      isOpen={reportCommentOpen}
+      targetType="comment"
+      targetLabel={reportCommentTarget?.label || "Comment"}
+      postId={post?._id}
+      commentId={reportCommentTarget?.commentId}
+      onClose={() => {
+        setReportCommentOpen(false);
+        setReportCommentTarget(null);
+      }}
+      onSuccess={() => {
+        window.alert("Report submitted.");
+      }}
     />
     </>
   );

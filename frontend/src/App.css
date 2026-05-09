@@ -5303,3 +5303,357 @@ body.dark-mode .secondary-button:hover {
     font-size: 0.85rem;
   }
 }
+
+/* =========================
+   Admin dashboard (MVP)
+   ========================= */
+
+.adminShell {
+  max-width: 1100px;
+  margin: 14px auto;
+  padding: 0 12px;
+}
+
+.adminHeaderCard {
+  margin-bottom: 12px;
+}
+
+.adminTabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 10px 0 12px;
+}
+
+.adminTabBtn {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-h);
+  border-radius: 999px;
+  padding: 7px 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.adminTabBtn--active {
+  border-color: color-mix(in srgb, var(--primary) 35%, var(--border));
+  background: color-mix(in srgb, var(--primary) 10%, var(--surface));
+}
+
+.adminStatsGrid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+@media (max-width: 980px) {
+  .adminStatsGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.adminStatCard {
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px;
+  box-shadow: var(--shadow);
+}
+
+.adminStatCard__label {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin-bottom: 8px;
+}
+
+.adminStatCard__value {
+  color: var(--text-h);
+  font-size: 1.5rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.adminStatCard__helper {
+  margin-top: 6px;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.adminTwoCol {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+@media (max-width: 900px) {
+  .adminTwoCol {
+    grid-template-columns: 1fr;
+  }
+}
+
+.adminMiniList {
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.adminMiniList__title {
+  padding: 10px 12px;
+  font-weight: 800;
+  color: var(--text-h);
+  border-bottom: 1px solid var(--border);
+}
+
+.adminMiniList__body {
+  padding: 8px 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.adminMiniList__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.adminMiniList__main {
+  min-width: 0;
+}
+
+.adminMiniList__name {
+  font-weight: 700;
+  color: var(--text-h);
+}
+
+.adminTableWrap {
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.adminTable {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 860px;
+}
+
+.adminTable th,
+.adminTable td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.adminTable th {
+  text-align: left;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  font-weight: 750;
+  background: color-mix(in srgb, var(--surface-soft) 70%, var(--surface));
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.adminInput {
+  min-height: 34px;
+}
+
+.adminSelectCompact {
+  min-width: 150px;
+}
+
+.adminClamp {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.adminPager {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.adminPager__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* --- Report modal (responsive bottom-sheet on mobile) --- */
+.reportModalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.reportModalCard {
+  width: min(520px, 100%);
+  max-height: min(680px, calc(100svh - 48px));
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+}
+
+.reportModalHeader {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.reportModalBody {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 18px;
+}
+
+.reportModalActions {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 10px;
+  padding: 14px 18px;
+  border-top: 1px solid var(--border);
+}
+
+.reportModalCard select,
+.reportModalCard textarea,
+.reportModalCard input {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 640px) {
+  .reportModalOverlay {
+    align-items: flex-end;
+    padding: 10px;
+    padding-bottom: calc(92px + env(safe-area-inset-bottom));
+  }
+
+  .reportModalCard {
+    width: 100%;
+    max-width: 100%;
+    max-height: calc(100svh - 120px - env(safe-area-inset-bottom));
+    border-radius: 18px;
+  }
+
+  .reportModalBody {
+    padding: 16px;
+  }
+
+  .reportModalActions {
+    padding: 12px 16px;
+  }
+
+  .reportModalActions button {
+    flex: 1;
+  }
+}
+
+body.report-modal-open .mobileFeedBottomNav {
+  display: none !important;
+}
+
+/* --- Register: responsive date picker --- */
+.registerDatePicker,
+.registerDatePicker .react-datepicker-wrapper,
+.registerDatePicker .react-datepicker__input-container {
+  width: 100%;
+}
+
+.registerDatePickerPopper {
+  z-index: 1000;
+}
+
+.react-datepicker {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.react-datepicker__header {
+  background: var(--surface-soft);
+  border-bottom: 1px solid var(--border);
+}
+
+.react-datepicker__current-month,
+.react-datepicker-time__header,
+.react-datepicker-year-header {
+  color: var(--text-h);
+}
+
+.react-datepicker__day-name,
+.react-datepicker__day,
+.react-datepicker__time-name {
+  color: var(--text);
+}
+
+.react-datepicker__day--disabled,
+.react-datepicker__day--outside-month {
+  color: var(--text-muted);
+}
+
+.react-datepicker__day--selected,
+.react-datepicker__day--keyboard-selected {
+  background: var(--primary);
+  color: var(--on-primary, white);
+}
+
+.react-datepicker__day:hover {
+  background: color-mix(in oklab, var(--primary) 14%, transparent);
+}
+
+.react-datepicker__navigation-icon::before {
+  border-color: var(--text);
+}
+
+.react-datepicker__month-select,
+.react-datepicker__year-select {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 6px 10px;
+}
+
+@media (max-width: 640px) {
+  .react-datepicker {
+    font-size: 0.92rem;
+    max-width: calc(100vw - 24px);
+  }
+  .react-datepicker__month-container {
+    width: 100%;
+  }
+}
+
+.fieldError {
+  margin-top: 6px;
+  color: var(--danger, #ef4444);
+  font-size: 0.9rem;
+}

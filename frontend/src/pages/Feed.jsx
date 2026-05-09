@@ -247,7 +247,7 @@ export default function Feed() {
             handleOpenPostDetails(post);
             window.history.replaceState({}, document.title, location.pathname);
           }
-        } catch (err) {
+        } catch {
           // Ignore: feed can still render normally.
         }
       })();

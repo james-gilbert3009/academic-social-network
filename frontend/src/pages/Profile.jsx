@@ -24,6 +24,7 @@ import FollowListModal from "../components/FollowListModal";
 import UserSearch from "../components/UserSearch";
 import { openConversationTarget } from "../api/messages";
 import { Ban, ICON_SIZE, MessageCircle, Unlock } from "../utils/icons";
+import ReportModal from "../components/ReportModal";
 
 function toCommaList(arr) {
   if (!Array.isArray(arr)) return "";
@@ -98,6 +99,7 @@ export default function Profile() {
   const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
   const [blockBusy, setBlockBusy] = useState(false);
   const [showBlockConfirm, setShowBlockConfirm] = useState(false);
+  const [reportUserOpen, setReportUserOpen] = useState(false);
 
   const [form, setForm] = useState({
     name: "",
@@ -1045,6 +1047,16 @@ export default function Profile() {
                           <Ban size={ICON_SIZE.sm} aria-hidden />
                           <span className="profileBlockBtn__label">Block</span>
                         </button>
+
+                        <button
+                          className="secondary-button btn-compact"
+                          type="button"
+                          onClick={() => setReportUserOpen(true)}
+                          disabled={!user?._id}
+                          title="Report user"
+                        >
+                          Report
+                        </button>
                       </div>
                     ) : isOwnProfile ? (
                       <ProfileHeaderActions
@@ -1186,6 +1198,17 @@ export default function Profile() {
         me={me}
         onToggleFollow={handleToggleFollowInList}
         busyUserIds={followListBusyIds}
+      />
+
+      <ReportModal
+        isOpen={reportUserOpen}
+        targetType="user"
+        targetLabel={user?.username ? `@${user.username}` : "User"}
+        reportedUserId={user?._id}
+        onClose={() => setReportUserOpen(false)}
+        onSuccess={() => {
+          window.alert("Report submitted.");
+        }}
       />
     </div>
   );

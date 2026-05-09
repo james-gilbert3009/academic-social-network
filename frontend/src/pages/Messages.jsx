@@ -21,6 +21,7 @@ import ConfirmDialog from "../components/ConfirmDialog";
 import NotificationsDropdown from "../components/NotificationsDropdown.jsx";
 import PostDetailsModal from "../components/PostDetailsModal";
 import RoleBadge from "../components/RoleBadge";
+import ReportModal from "../components/ReportModal";
 import { getPostById } from "../api/posts";
 import timeAgo from "../utils/timeAgo";
 import {
@@ -154,8 +155,9 @@ export default function Messages() {
 
   const [openMessageActionsId, setOpenMessageActionsId] = useState(null);
   const [pendingDeleteMessage, setPendingDeleteMessage] = useState(null); // { messageId, mode }
-  const [messageDeleteBusy, setMessageDeleteBusy] = useState(false);
+  const [, setMessageDeleteBusy] = useState(false);
   const [pendingDeleteChat, setPendingDeleteChat] = useState(false);
+  const [reportUserOpen, setReportUserOpen] = useState(false);
 
   const scrollRef = useRef(null);
   // Whether the user is parked near the bottom of the chat scroller. We only
@@ -463,7 +465,7 @@ export default function Messages() {
           await refreshConversations();
           await refreshRequests();
         }
-      } catch (e) {
+      } catch {
         // handled in refresh
       }
     }
@@ -674,7 +676,7 @@ export default function Messages() {
           if (res?.data?.conversation) {
             setActiveConversation(res.data.conversation);
           }
-        } catch (_) {
+        } catch {
           // If re-fetching the conversation fails (e.g. block removed
           // visibility temporarily) just rely on the list refresh.
         }
@@ -1118,6 +1120,15 @@ export default function Messages() {
                 >
                   {activeConversation?.isBlockedByMe ? <Unlock size={ICON_SIZE.sm} aria-hidden /> : <Ban size={ICON_SIZE.sm} aria-hidden />}
                   {activeConversation?.isBlockedByMe ? "Unblock" : "Block"}
+                </button>
+                <button
+                  type="button"
+                  className="secondary-button btn-compact"
+                  onClick={() => setReportUserOpen(true)}
+                  disabled={!activeOther?._id || !activeConversation?._id}
+                  title="Report user"
+                >
+                  Report
                 </button>
               </div>
             ) : null}
@@ -1568,6 +1579,18 @@ export default function Messages() {
           } catch (err) {
             setChatError(err?.response?.data?.message || err?.message || "Failed to delete chat");
           }
+        }}
+      />
+
+      <ReportModal
+        isOpen={reportUserOpen}
+        targetType="user"
+        targetLabel={activeOther?.username ? `@${activeOther.username}` : "User"}
+        reportedUserId={activeOther?._id}
+        conversationId={activeConversation?._id}
+        onClose={() => setReportUserOpen(false)}
+        onSuccess={() => {
+          window.alert("Report submitted.");
         }}
       />
     </div>

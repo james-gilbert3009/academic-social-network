@@ -104,7 +104,7 @@ export default function SharePostModal({ open, post, me, onClose }) {
       try {
         const res = await getConversations();
         if (!cancelled) setRecentConversations(res.data.conversations || []);
-      } catch (e) {
+      } catch {
         if (!cancelled) setRecentConversations([]);
       } finally {
         if (!cancelled) setLoadingRecent(false);
@@ -117,7 +117,7 @@ export default function SharePostModal({ open, post, me, onClose }) {
       try {
         const res = await getConnections(me._id);
         if (!cancelled) setConnections(res.data.users || []);
-      } catch (e) {
+      } catch {
         if (!cancelled) setConnections([]);
       } finally {
         if (!cancelled) setLoadingConnections(false);
@@ -141,7 +141,7 @@ export default function SharePostModal({ open, post, me, onClose }) {
       try {
         const res = await searchUsers(trimmed);
         if (!cancelled) setResults(res.data.users || []);
-      } catch (err) {
+      } catch {
         if (!cancelled) setResults([]);
       }
     }, 250);

@@ -12,6 +12,10 @@ import postsRoutes from "./routes/posts.js";
 import notificationsRoutes from "./routes/notifications.js";
 import tsiEventsRoutes from "./routes/tsiEvents.js";
 import messagesRoutes from "./routes/messages.js";
+import reportsRoutes from "./routes/reports.js";
+import adminRoutes from "./routes/admin.js";
+import { requireAuth } from "./middleware/auth.js";
+import { requireAdmin } from "./middleware/admin.js";
 
 dotenv.config();
 
@@ -55,6 +59,8 @@ app.use("/api/posts", postsRoutes);
 app.use("/api/notifications", notificationsRoutes);
 app.use("/api/tsi-events", tsiEventsRoutes);
 app.use("/api/messages", messagesRoutes);
+app.use("/api/reports", reportsRoutes);
+app.use("/api/admin", requireAuth, requireAdmin, adminRoutes);
 
 mongoose
   .connect(process.env.MONGO_URI)

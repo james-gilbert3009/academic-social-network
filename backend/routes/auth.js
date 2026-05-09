@@ -6,13 +6,48 @@ import User from "../models/User.js";
 
 const router = express.Router();
 
+function isValidDate(value) {
+  const d = value instanceof Date ? value : new Date(value);
+  return d instanceof Date && !Number.isNaN(d.getTime());
+}
+
+function isAtLeastAge(date, age) {
+  const today = new Date();
+  const birthDate = new Date(date);
+
+  // Reject future dates (including today+time issues)
+  if (birthDate.getTime() > today.getTime()) return false;
+
+  let userAge = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    userAge--;
+  }
+
+  return userAge >= age;
+}
+
 // Register
 router.post("/register", async (req, res) => {
   try {
-    const { name, username, email, password, role, birthdate } = req.body;
+    const { name, username, email, password, role, dateOfBirth, birthdate } = req.body;
 
     if (!name || !username || !email || !password) {
       return res.status(400).json({ message: "Please provide name, username, email, and password" });
+    }
+
+    const rawDob = dateOfBirth ?? birthdate;
+    if (!rawDob) {
+      return res.status(400).json({ message: "Date of birth is required." });
+    }
+    if (!isValidDate(rawDob)) {
+      return res.status(400).json({ message: "Please select a valid date of birth." });
+    }
+
+    const dobDate = new Date(rawDob);
+    if (!isAtLeastAge(dobDate, 16)) {
+      return res.status(400).json({ message: "You must be at least 16 years old to register." });
     }
 
     const normalizedEmail = String(email).toLowerCase().trim();
@@ -48,7 +83,9 @@ router.post("/register", async (req, res) => {
       email: normalizedEmail,
       password: hashedPassword,
       role: registrationRole,
-      birthdate: birthdate ? new Date(birthdate) : null,
+      dateOfBirth: dobDate,
+      // Backward-compatible mirror field
+      birthdate: dobDate,
     });
 
     const token = jwt.sign(

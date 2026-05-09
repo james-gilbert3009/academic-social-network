@@ -109,6 +109,8 @@ export default function AppHeader({
   const canEdit = canShowAccountActions;
   const canDelete = canShowAccountActions;
 
+  const isAdmin = String(currentUser?.role || "").toLowerCase() === "admin";
+
   const themeLabel = useMemo(() => (darkMode ? "Disable dark mode" : "Enable dark mode"), [darkMode]);
 
   function logout() {
@@ -140,14 +142,14 @@ export default function AppHeader({
     closeOverlays();
   }
 
-  function goProfile() {
-    navigate("/profile");
+  function goAdmin() {
+    navigate("/admin");
     closeOverlays();
   }
 
-  function runAndCloseMenu(fn) {
-    setMenuOpen(false);
-    if (typeof fn === "function") fn();
+  function goProfile() {
+    navigate("/profile");
+    closeOverlays();
   }
 
   function closeSettings() {
@@ -319,6 +321,18 @@ export default function AppHeader({
             >
               <House size={ICON_SIZE.lg} aria-hidden />
             </button>
+
+            {isAdmin ? (
+              <button
+                type="button"
+                className={activePage === "admin" ? "app-nav__link app-nav__link--active" : "app-nav__link"}
+                onClick={goAdmin}
+                aria-label="Admin Panel"
+                title="Admin Panel"
+              >
+                Admin Panel
+              </button>
+            ) : null}
           </nav>
           {search}
         </div>
@@ -552,6 +566,20 @@ export default function AppHeader({
                 >
                   Feed
                 </button>
+
+                {isAdmin ? (
+                  <button
+                    type="button"
+                    className={
+                      activePage === "admin"
+                        ? "app-header__drawerLink app-header__drawerLink--active"
+                        : "app-header__drawerLink"
+                    }
+                    onClick={goAdmin}
+                  >
+                    Admin Panel
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   className={
