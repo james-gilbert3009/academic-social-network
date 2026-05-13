@@ -25,4 +25,3 @@ This project is a web-based academic social networking platform designed for stu
 - JWT Authentication
 - Multer (file upload)
 
-## 📂 Project Structure

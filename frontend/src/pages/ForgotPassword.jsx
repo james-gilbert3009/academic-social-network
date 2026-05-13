@@ -97,7 +97,7 @@ export default function ForgotPassword() {
                 autoComplete="new-password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Min 6 characters"
+                placeholder="Choose a strong password"
                 style={{ flex: 1 }}
               />
               <button
@@ -108,6 +108,10 @@ export default function ForgotPassword() {
               >
                 {showPassword ? "Hide" : "Show"}
               </button>
+            </div>
+            <div className="muted" style={{ marginTop: 6, fontSize: "0.92rem" }}>
+              Use at least 8 characters with uppercase, lowercase, a number, and a symbol. Do not use
+              your username or email in the password.
             </div>
           </div>
 

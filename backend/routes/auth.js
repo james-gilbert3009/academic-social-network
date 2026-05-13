@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
+import { validatePasswordStrength } from "../utils/passwordPolicy.js";
 
 const router = express.Router();
 
@@ -61,6 +62,14 @@ router.post("/register", async (req, res) => {
     const existingUsername = await User.findOne({ username: normalizedUsername });
     if (existingUsername) {
       return res.status(409).json({ message: "Username already exists" });
+    }
+
+    const pwCheck = validatePasswordStrength(password, {
+      username: normalizedUsername,
+      email: normalizedEmail,
+    });
+    if (!pwCheck.ok) {
+      return res.status(400).json({ message: pwCheck.message });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -225,6 +234,14 @@ router.post("/reset-password", async (req, res) => {
 
     if (!user.resetTokenExpiry || user.resetTokenExpiry.getTime() < Date.now()) {
       return res.status(400).json({ message: "Reset token has expired" });
+    }
+
+    const pwCheck = validatePasswordStrength(newPassword, {
+      username: user.username,
+      email: user.email,
+    });
+    if (!pwCheck.ok) {
+      return res.status(400).json({ message: pwCheck.message });
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);

@@ -33,11 +33,11 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
-    // New canonical field for registration DOB (required for new users).
-    // We keep `birthdate` for backward compatibility with existing data.
+    // Canonical DOB from registration. Not schema-required so legacy users without
+    // the field can still save (unblock, etc.). POST /api/auth/register enforces it.
     dateOfBirth: {
       type: Date,
-      required: true,
+      default: null,
     },
     bio: {
       type: String,
@@ -98,3 +98,6 @@ const userSchema = new mongoose.Schema(
 );
 
 export default mongoose.model("User", userSchema);
+
+
+

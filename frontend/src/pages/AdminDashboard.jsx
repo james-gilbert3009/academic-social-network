@@ -339,7 +339,7 @@ export default function AdminDashboard() {
           <div className="topbar" style={{ padding: 0, alignItems: "flex-start" }}>
             <div>
               <h2 style={{ marginBottom: 6 }}>Admin Dashboard</h2>
-              <div className="muted">Moderation + basic platform health for the MVP demo.</div>
+        
             </div>
             <div className="actionsRow">
               <button
