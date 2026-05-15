@@ -1206,9 +1206,6 @@ export default function Profile() {
         targetLabel={user?.username ? `@${user.username}` : "User"}
         reportedUserId={user?._id}
         onClose={() => setReportUserOpen(false)}
-        onSuccess={() => {
-          window.alert("Report submitted.");
-        }}
       />
     </div>
   );

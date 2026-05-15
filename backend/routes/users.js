@@ -147,6 +147,7 @@ router.delete("/me", requireAuth, async (req, res) => {
 // Excludes any user the current user has blocked OR who has blocked the
 // current user — blocked users disappear entirely from search results both
 // ways so the block feels mutual to the UI.
+// Admin accounts are never returned (not discoverable via search).
 router.get("/search", requireAuth, async (req, res) => {
   try {
     const qRaw = String(req.query?.q || "").trim();
@@ -158,11 +159,15 @@ router.get("/search", requireAuth, async (req, res) => {
     const roleRaw = String(req.query?.role || "").trim().toLowerCase();
     const role = roleRaw && roleRaw !== "all" ? roleRaw : "";
 
+    if (role === "admin") return res.json({ users: [] });
+
     const hiddenIds = await getBlockedAndBlockerIds(req.user.id);
+
+    const roleFilter = role ? { role } : { role: { $ne: "admin" } };
 
     const query = {
       $or: [{ name: rx }, { username: rx }],
-      ...(role ? { role } : {}),
+      ...roleFilter,
       ...(hiddenIds.length ? { _id: { $nin: hiddenIds } } : {}),
     };
 

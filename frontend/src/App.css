@@ -165,6 +165,124 @@ svg.lucide {
   }
 }
 
+/* Messages: bounded viewport so the thread scrolls inside .messagesChatBody
+   instead of growing the document (same flex/min-height idea as the feed). */
+.messagesCol {
+  min-width: 0;
+}
+
+@media (min-width: 901px) {
+  html:has(.messagesViewportShell),
+  body:has(.messagesViewportShell) {
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  body:has(.messagesViewportShell) #root {
+    height: 100%;
+    min-height: 0;
+    max-height: 100dvh;
+    overflow: hidden;
+  }
+
+  .page:has(.messagesViewportShell) {
+    flex: 1;
+    min-height: 0;
+    height: 100%;
+    max-height: 100dvh;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+
+  .messagesViewportShell {
+    flex: 1;
+    min-height: 0;
+    min-width: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .messagesViewportShell .messagesLayout {
+    flex: 1;
+    min-height: 0;
+    align-items: stretch;
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .messagesViewportShell .messagesCol {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .messagesViewportShell .messagesListPane {
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .messagesViewportShell .messagesChatPane {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    flex: 1;
+  }
+}
+
+@media (max-width: 900px) {
+  html:has(.messagesPage--mobileChat),
+  body:has(.messagesPage--mobileChat) {
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  body:has(.messagesPage--mobileChat) #root {
+    height: 100%;
+    min-height: 0;
+    max-height: 100dvh;
+    overflow: hidden;
+  }
+
+  .messagesPage--mobileChat {
+    flex: 1;
+    min-height: 0;
+    max-height: 100dvh;
+    overflow: hidden;
+  }
+
+  .messagesPage--mobileChat .messagesViewportShell {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .messagesPage--mobileChat .messagesLayout {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .messagesPage--mobileChat .messagesCol--chat {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .messagesPage--mobileChat .messagesChatPane {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+}
+
 .messagesListPane,
 .messagesChatPane {
   min-width: 0;
@@ -177,8 +295,9 @@ svg.lucide {
 .messagesChatPanel {
   display: flex;
   flex-direction: column;
+  flex: 1;
   min-height: 0;
-  height: 100%;
+  min-width: 0;
 }
 
 .messagesList {
@@ -316,6 +435,8 @@ svg.lucide {
   border-radius: 12px;
   background: var(--surface-soft);
   scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 .messageRow {
@@ -4187,6 +4308,12 @@ body.dark-mode .secondary-button:hover {
   color: var(--text-h);
 }
 
+.alertSuccess {
+  border-color: color-mix(in oklab, var(--primary) 38%, var(--border));
+  background: color-mix(in oklab, var(--primary) 10%, var(--surface));
+  color: var(--text-h);
+}
+
 .muted {
   color: var(--text-muted);
 }
@@ -4302,6 +4429,22 @@ body.dark-mode .secondary-button:hover {
   background: color-mix(in oklab, var(--primary) 18%, var(--surface));
   border-color: color-mix(in oklab, var(--primary) 45%, var(--border));
   color: var(--primary-dark);
+}
+
+/* Create post: caption grows with typing; JS sets height from scrollHeight (see CreatePostForm). */
+.createPostForm__caption {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-h);
+  font: 16px/1.25 system-ui;
+  outline: none;
+  resize: none;
+  min-height: calc(1.25em * 3 + 20px);
+  overflow-x: hidden;
 }
 
 .createPostForm__preview {

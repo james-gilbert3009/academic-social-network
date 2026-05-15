@@ -500,9 +500,6 @@ export default function PostDetailsModal({
       targetLabel="Post"
       postId={post?._id}
       onClose={() => setReportPostOpen(false)}
-      onSuccess={() => {
-        window.alert("Report submitted.");
-      }}
     />
 
     <ReportModal
@@ -514,9 +511,6 @@ export default function PostDetailsModal({
       onClose={() => {
         setReportCommentOpen(false);
         setReportCommentTarget(null);
-      }}
-      onSuccess={() => {
-        window.alert("Report submitted.");
       }}
     />
     </>

@@ -507,9 +507,6 @@ export default function FeedPostCard({
         targetLabel="Post"
         postId={post?._id}
         onClose={() => setReportOpen(false)}
-        onSuccess={() => {
-          window.alert("Report submitted.");
-        }}
       />
     </article>
   );

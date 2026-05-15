@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createReport } from "../api/reports";
 
 const REASONS = [
@@ -25,10 +25,24 @@ export default function ReportModal({
   const [details, setDetails] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [submitted, setSubmitted] = useState(false);
 
   const canSubmit = useMemo(() => Boolean(reason) && !busy, [reason, busy]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    setReason("");
+    setDetails("");
+    setError("");
+    setBusy(false);
+    setSubmitted(false);
+  }, [isOpen]);
+
   if (!isOpen) return null;
+
+  function handleDismiss() {
+    onClose?.();
+  }
 
   async function submit(e) {
     e.preventDefault();
@@ -48,7 +62,7 @@ export default function ReportModal({
 
       const res = await createReport(payload);
       onSuccess?.(res?.data?.report);
-      onClose?.();
+      setSubmitted(true);
     } catch (err) {
       const msg = err?.response?.data?.message || err?.message || "Failed to submit report";
       setError(msg);
@@ -67,7 +81,7 @@ export default function ReportModal({
           <button
             className="secondary-button btn-compact"
             type="button"
-            onClick={onClose}
+            onClick={handleDismiss}
             aria-label="Close report modal"
             disabled={busy}
           >
@@ -79,51 +93,66 @@ export default function ReportModal({
           Reporting: <strong style={{ color: "var(--text-h)" }}>{targetLabel || "content"}</strong>
         </div>
 
-        {error ? <div className="alert alertError" style={{ marginBottom: 12 }}>{error}</div> : null}
-
-        <form onSubmit={submit}>
-          <label style={{ display: "grid", gap: 6, marginBottom: 12 }}>
-            <span style={{ color: "var(--text-h)", fontWeight: 700 }}>Reason</span>
-            <select
-              className="input"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              disabled={busy}
-              aria-label="Report reason"
-            >
-              <option value="">Select a reason…</option>
-              {REASONS.map((r) => (
-                <option key={r.value} value={r.value}>
-                  {r.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label style={{ display: "grid", gap: 6, marginBottom: 12 }}>
-            <span style={{ color: "var(--text-h)", fontWeight: 700 }}>Details (optional)</span>
-            <textarea
-              className="input"
-              value={details}
-              onChange={(e) => setDetails(e.target.value)}
-              disabled={busy}
-              rows={4}
-              maxLength={1000}
-              aria-label="Report details"
-              style={{ resize: "vertical", padding: 10 }}
-              placeholder="Add extra context (optional)…"
-            />
-          </label>
-
-          <div className="actionsRow">
-            <button className="primary-button btn-compact" type="submit" disabled={!canSubmit}>
-              {busy ? "Submitting…" : "Submit report"}
-            </button>
-            <button className="secondary-button btn-compact" type="button" onClick={onClose} disabled={busy}>
-              Cancel
-            </button>
+        {submitted ? (
+          <div role="status" aria-live="polite">
+            <div className="alert alertSuccess" style={{ marginBottom: 16 }}>
+              Thanks — your report was sent to the moderators. We will review it as soon as we can.
+            </div>
+            <div className="actionsRow">
+              <button className="primary-button btn-compact" type="button" onClick={handleDismiss}>
+                Done
+              </button>
+            </div>
           </div>
-        </form>
+        ) : (
+          <>
+            {error ? <div className="alert alertError" style={{ marginBottom: 12 }}>{error}</div> : null}
+
+            <form onSubmit={submit}>
+              <label style={{ display: "grid", gap: 6, marginBottom: 12 }}>
+                <span style={{ color: "var(--text-h)", fontWeight: 700 }}>Reason</span>
+                <select
+                  className="input"
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  disabled={busy}
+                  aria-label="Report reason"
+                >
+                  <option value="">Select a reason…</option>
+                  {REASONS.map((r) => (
+                    <option key={r.value} value={r.value}>
+                      {r.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label style={{ display: "grid", gap: 6, marginBottom: 12 }}>
+                <span style={{ color: "var(--text-h)", fontWeight: 700 }}>Details (optional)</span>
+                <textarea
+                  className="input"
+                  value={details}
+                  onChange={(e) => setDetails(e.target.value)}
+                  disabled={busy}
+                  rows={4}
+                  maxLength={1000}
+                  aria-label="Report details"
+                  style={{ resize: "vertical", padding: 10 }}
+                  placeholder="Add extra context (optional)…"
+                />
+              </label>
+
+              <div className="actionsRow">
+                <button className="primary-button btn-compact" type="submit" disabled={!canSubmit}>
+                  {busy ? "Submitting…" : "Submit report"}
+                </button>
+                <button className="secondary-button btn-compact" type="button" onClick={handleDismiss} disabled={busy}>
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </>
+        )}
       </div>
     </div>
   );

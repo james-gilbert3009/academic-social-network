@@ -730,7 +730,7 @@ export default function AdminDashboard() {
             <div className="topbar" style={{ padding: 0, alignItems: "flex-end", flexWrap: "wrap" }}>
               <div>
                 <h2 style={{ marginBottom: 6 }}>Reports</h2>
-                <div className="muted">Simple moderation queue for the MVP demo.</div>
+                
               </div>
               <div className="actionsRow" style={{ flexWrap: "wrap" }}>
                 <select

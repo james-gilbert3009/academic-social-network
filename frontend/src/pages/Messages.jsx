@@ -1474,17 +1474,27 @@ export default function Messages() {
   const showList = !isMobile || (!conversationId && !isNewChat);
   const showChat = !isMobile || Boolean(conversationId) || isNewChat;
 
+  const pageClassName = [
+    "page",
+    "messagesPage",
+    isMobile && showChat ? "messagesPage--mobileChat" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
-    <div className="page messagesPage">
+    <div className={pageClassName}>
       <AppHeader
         activePage="messages"
         currentUser={me}
         notifications={me ? <NotificationsDropdown /> : null}
       />
 
-      <div className="messagesLayout">
-        {showList ? <div className="messagesCol">{listPane}</div> : null}
-        {showChat ? <div className="messagesCol messagesCol--chat">{chatPane}</div> : null}
+      <div className="messagesViewportShell">
+        <div className="messagesLayout">
+          {showList ? <div className="messagesCol">{listPane}</div> : null}
+          {showChat ? <div className="messagesCol messagesCol--chat">{chatPane}</div> : null}
+        </div>
       </div>
 
       {selectedSharedPost ? (
@@ -1589,9 +1599,6 @@ export default function Messages() {
         reportedUserId={activeOther?._id}
         conversationId={activeConversation?._id}
         onClose={() => setReportUserOpen(false)}
-        onSuccess={() => {
-          window.alert("Report submitted.");
-        }}
       />
     </div>
   );

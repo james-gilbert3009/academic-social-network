@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Cropper from "react-easy-crop";
 import "react-easy-crop/react-easy-crop.css";
 
@@ -31,6 +31,7 @@ export default function CreatePostForm({
   placeholder = "Share something...",
 }) {
   const fileInputRef = useRef(null);
+  const captionRef = useRef(null);
   /** Tracks active blob: URL for revoke on replace / unmount (avoid setState-in-effect lint). */
   const previewBlobUrlRef = useRef(null);
   const [content, setContent] = useState("");
@@ -67,6 +68,18 @@ export default function CreatePostForm({
       }
     };
   }, []);
+
+  /** Grow/shrink caption field with content; cap height so long posts scroll inside the textarea. */
+  useLayoutEffect(() => {
+    const el = captionRef.current;
+    if (!el) return;
+    const maxPx = Math.min(320, Math.round(typeof window !== "undefined" ? window.innerHeight * 0.35 : 320));
+    el.style.height = "auto";
+    const full = el.scrollHeight;
+    const next = Math.min(full, maxPx);
+    el.style.height = `${next}px`;
+    el.style.overflowY = full > maxPx ? "auto" : "hidden";
+  }, [content]);
 
   function revokePreviewBlob() {
     if (previewBlobUrlRef.current) {
@@ -232,23 +245,15 @@ export default function CreatePostForm({
         </div>
 
         <textarea
-          className="input"
-          rows={3}
+          ref={captionRef}
+          className="input createPostForm__caption"
+          rows={1}
           value={content}
           placeholder={placeholder}
           onChange={(e) => setContent(e.target.value)}
           maxLength={1000}
-          style={{
-            width: "100%",
-            boxSizing: "border-box",
-            padding: "10px 12px",
-            borderRadius: 10,
-            border: "1px solid var(--border)",
-            background: "var(--surface)",
-            color: "var(--text-h)",
-            font: "16px/1.25 system-ui",
-            outline: "none",
-          }}
+          disabled={submitting}
+          aria-label="Post caption"
         />
 
         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
